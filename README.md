@@ -8,7 +8,7 @@ No necesita instalación ni backend propio: es un único archivo HTML que corre 
 navegador. Los datos se guardan solos, y opcionalmente se pueden sincronizar entre dos
 personas usando un repositorio de GitHub como almacenamiento compartido.
 
-🔗 **URL de la app:** `https://github.com/myunis8/ElectricBudget.html`
+🔗 **URL de la app:** `https://myunis8.github.io/ElectricBudget/presupuestos-app.html`
 
 ---
 
