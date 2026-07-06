@@ -6,7 +6,7 @@ de la obra, y generar los PDF para el cliente y para la compra de materiales.
 
 No necesita instalación ni backend propio: es un único archivo HTML que corre en el
 navegador. Los datos se guardan solos, y opcionalmente se pueden sincronizar entre dos
-personas usando un repositorio de GitHub como almacenamiento compartido.
+personas usando un repositorio de GitHub como almacenamiento compartido. 
 
 🔗 **URL de la app:** `https://myunis8.github.io/ElectricBudget/presupuestos-app.html`
 
