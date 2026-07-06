@@ -251,6 +251,16 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
       <h2 class="display">Tus proyectos</h2>
       <button class="btn btn-primary" id="btn-nuevo-proyecto">+ Nuevo proyecto</button>
     </div>
+
+    <div class="panel" style="padding:16px 20px;">
+      <div class="form-grid" style="grid-template-columns: 2fr 1fr 1fr auto; align-items:end;">
+        <div class="field"><label>Buscar por nombre o dirección</label><input class="text-input" id="filtro-texto" placeholder="Ej: Rodríguez, o Av. Libertador"></div>
+        <div class="field"><label>Creado desde</label><input class="text-input" id="filtro-desde" type="date"></div>
+        <div class="field"><label>Creado hasta</label><input class="text-input" id="filtro-hasta" type="date"></div>
+        <button class="btn btn-ghost btn-sm" id="btn-filtro-limpiar">Limpiar</button>
+      </div>
+    </div>
+
     <div id="proyectos-grid" class="proyectos-grid"></div>
     <div id="proyectos-empty" class="empty-state" style="display:none;">
       <div class="display">Todavía no cargaste ningún proyecto</div>
@@ -621,7 +631,9 @@ async function saveProyectoActual(){
     id: proyectoActual.id,
     nombre: proyectoActual.nombre || '(sin nombre)',
     cliente: proyectoActual.cliente || '',
+    obra: proyectoActual.obra || '',
     fecha: proyectoActual.fecha || '',
+    creadoEl: proyectoActual.createdAt || Date.now(),
     total: instalacion + extras,
   };
   if(idx >= 0) proyectosIndex[idx] = entry; else proyectosIndex.push(entry);
@@ -646,7 +658,10 @@ function showView(name){
   document.getElementById('view-' + name).classList.add('active');
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.view === name));
 }
-document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
+document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+  if(btn.dataset.view === 'proyectos') renderProyectosGrid();
+  showView(btn.dataset.view);
+}));
 document.getElementById('btn-migrar-precios').addEventListener('click', migrarPrecios);
 
 // ---------------------------------------------------------------------
@@ -728,19 +743,63 @@ document.getElementById('btn-add-item').addEventListener('click', async () => {
 // ---------------------------------------------------------------------
 // Vista: Proyectos (lista)
 // ---------------------------------------------------------------------
+function hayFiltrosActivos(){
+  return !!(document.getElementById('filtro-texto').value.trim() ||
+            document.getElementById('filtro-desde').value ||
+            document.getElementById('filtro-hasta').value);
+}
+
+function obtenerProyectosFiltrados(){
+  const texto = document.getElementById('filtro-texto').value.trim().toLowerCase();
+  const desde = document.getElementById('filtro-desde').value;
+  const hasta = document.getElementById('filtro-hasta').value;
+
+  return proyectosIndex.filter(p => {
+    if(texto){
+      const enNombre = (p.nombre || '').toLowerCase().includes(texto);
+      const enObra = (p.obra || '').toLowerCase().includes(texto);
+      const enCliente = (p.cliente || '').toLowerCase().includes(texto);
+      if(!enNombre && !enObra && !enCliente) return false;
+    }
+    if(desde || hasta){
+      if(!p.creadoEl) return true; // proyecto viejo sin esa fecha registrada: no lo ocultamos
+      const fechaCreacion = new Date(p.creadoEl).toISOString().slice(0, 10);
+      if(desde && fechaCreacion < desde) return false;
+      if(hasta && fechaCreacion > hasta) return false;
+    }
+    return true;
+  });
+}
+
 function renderProyectosGrid(){
   const grid = document.getElementById('proyectos-grid');
   const empty = document.getElementById('proyectos-empty');
   grid.innerHTML = '';
-  if(proyectosIndex.length === 0){ empty.style.display = 'block'; return; }
+
+  const filtrando = hayFiltrosActivos();
+  const lista = obtenerProyectosFiltrados();
+
+  if(proyectosIndex.length === 0){
+    empty.querySelector('.display').textContent = 'Todavía no cargaste ningún proyecto';
+    empty.querySelector('div:nth-child(2)').textContent = 'Creá el primero con "+ Nuevo proyecto" para empezar a armar el presupuesto.';
+    empty.style.display = 'block';
+    return;
+  }
+  if(lista.length === 0){
+    empty.querySelector('.display').textContent = 'No hay proyectos que coincidan con el filtro';
+    empty.querySelector('div:nth-child(2)').textContent = 'Probá cambiar el texto o el rango de fechas, o tocá "Limpiar".';
+    empty.style.display = 'block';
+    return;
+  }
   empty.style.display = 'none';
 
-  proyectosIndex.slice().sort((a,b) => (b.fecha||'').localeCompare(a.fecha||'')).forEach(p => {
+  lista.slice().sort((a,b) => (b.fecha||'').localeCompare(a.fecha||'')).forEach(p => {
     const card = document.createElement('div');
     card.className = 'proyecto-card';
     card.innerHTML = `
       <h3>${p.nombre}</h3>
       <div class="meta">${p.cliente || 'Sin cliente'}${p.fecha ? ' · ' + fechaLegible(p.fecha) : ''}</div>
+      ${p.obra ? `<div class="meta">${p.obra}</div>` : ''}
       <div class="total">${money(p.total)}</div>
       <div class="card-actions">
         <button class="btn btn-ghost btn-sm" data-open="${p.id}">Abrir</button>
@@ -751,6 +810,16 @@ function renderProyectosGrid(){
   grid.querySelectorAll('button[data-open]').forEach(btn => btn.addEventListener('click', () => abrirProyecto(btn.dataset.open)));
   grid.querySelectorAll('button[data-del]').forEach(btn => btn.addEventListener('click', () => eliminarProyecto(btn.dataset.del)));
 }
+
+['filtro-texto','filtro-desde','filtro-hasta'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => renderProyectosGrid());
+});
+document.getElementById('btn-filtro-limpiar').addEventListener('click', () => {
+  document.getElementById('filtro-texto').value = '';
+  document.getElementById('filtro-desde').value = '';
+  document.getElementById('filtro-hasta').value = '';
+  renderProyectosGrid();
+});
 
 document.getElementById('btn-nuevo-proyecto').addEventListener('click', () => nuevoProyecto());
 document.getElementById('btn-volver').addEventListener('click', () => { renderProyectosGrid(); showView('proyectos'); });
@@ -1379,7 +1448,8 @@ async function fusionarProyectos(proyectosRemotos){
       const {instalacion, extras} = calcularTotales(remoto);
       proyectosIndex.push({
         id: remoto.id, nombre: remoto.nombre || '(sin nombre)',
-        cliente: remoto.cliente || '', fecha: remoto.fecha || '', total: instalacion + extras,
+        cliente: remoto.cliente || '', obra: remoto.obra || '', fecha: remoto.fecha || '',
+        creadoEl: remoto.createdAt || Date.now(), total: instalacion + extras,
       });
       nuevos++;
     }else{
@@ -1392,7 +1462,8 @@ async function fusionarProyectos(proyectosRemotos){
         const idx = proyectosIndex.findIndex(p => p.id === remoto.id);
         proyectosIndex[idx] = {
           id: remoto.id, nombre: remoto.nombre || '(sin nombre)',
-          cliente: remoto.cliente || '', fecha: remoto.fecha || '', total: instalacion + extras,
+          cliente: remoto.cliente || '', obra: remoto.obra || '', fecha: remoto.fecha || '',
+          creadoEl: remoto.createdAt || Date.now(), total: instalacion + extras,
         };
         actualizados++;
       }else{
