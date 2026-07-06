@@ -166,6 +166,13 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
 .toast{ position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--navy); color:#eef2f5; padding:10px 20px; border-radius:8px; font-size:0.85rem; box-shadow:0 6px 18px rgba(0,0,0,0.25); opacity:0; pointer-events:none; transition: opacity 0.2s ease, transform 0.2s ease; z-index: 50; }
 .toast.show{ opacity:1; transform:translateX(-50%) translateY(-6px); }
 
+#editor-floating-actions{
+  display:none; position:fixed; bottom:20px; right:20px; gap:10px; z-index:60;
+}
+#editor-floating-actions.show{ display:flex; }
+#editor-floating-actions .btn{ box-shadow:0 6px 18px rgba(0,0,0,0.22); }
+#editor-floating-actions #btn-cancelar-flotante{ background:var(--panel); }
+
 @media (max-width: 640px){
   .add-form{ grid-template-columns: 1fr 1fr; }
   .form-grid{ grid-template-columns: 1fr; }
@@ -257,7 +264,10 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
         <div class="field"><label>Buscar por nombre o dirección</label><input class="text-input" id="filtro-texto" placeholder="Ej: Rodríguez, o Av. Libertador"></div>
         <div class="field"><label>Creado desde</label><input class="text-input" id="filtro-desde" type="date"></div>
         <div class="field"><label>Creado hasta</label><input class="text-input" id="filtro-hasta" type="date"></div>
-        <button class="btn btn-ghost btn-sm" id="btn-filtro-limpiar">Limpiar</button>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-primary btn-sm" id="btn-filtro-buscar">Buscar</button>
+          <button class="btn btn-ghost btn-sm" id="btn-filtro-limpiar">Limpiar</button>
+        </div>
       </div>
     </div>
 
@@ -332,7 +342,6 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
       </div>
 
       <div class="editor-actions">
-        <button class="btn btn-primary" id="btn-guardar">Guardar proyecto</button>
         <button class="btn btn-copper" id="btn-pdf-presupuesto">Generar PDF presupuesto</button>
         <a class="btn btn-ghost" id="btn-pdf-presupuesto-link" style="display:none;" target="_blank">Descargar (si no se descargó solo)</a>
       </div>
@@ -435,6 +444,11 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
 </main>
 
 <div class="toast" id="toast"></div>
+
+<div id="editor-floating-actions">
+  <button class="btn btn-ghost" id="btn-cancelar-flotante">Cancelar</button>
+  <button class="btn btn-primary" id="btn-guardar">Guardar proyecto</button>
+</div>
 
 <script>
 const SEED_PRECIOS = [
@@ -657,6 +671,7 @@ function showView(name){
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById('view-' + name).classList.add('active');
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.view === name));
+  document.getElementById('editor-floating-actions').classList.toggle('show', name === 'editor');
 }
 document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
   if(btn.dataset.view === 'proyectos') renderProyectosGrid();
@@ -814,6 +829,7 @@ function renderProyectosGrid(){
 ['filtro-texto','filtro-desde','filtro-hasta'].forEach(id => {
   document.getElementById(id).addEventListener('input', () => renderProyectosGrid());
 });
+document.getElementById('btn-filtro-buscar').addEventListener('click', () => renderProyectosGrid());
 document.getElementById('btn-filtro-limpiar').addEventListener('click', () => {
   document.getElementById('filtro-texto').value = '';
   document.getElementById('filtro-desde').value = '';
@@ -823,6 +839,7 @@ document.getElementById('btn-filtro-limpiar').addEventListener('click', () => {
 
 document.getElementById('btn-nuevo-proyecto').addEventListener('click', () => nuevoProyecto());
 document.getElementById('btn-volver').addEventListener('click', () => { renderProyectosGrid(); showView('proyectos'); });
+document.getElementById('btn-cancelar-flotante').addEventListener('click', () => { renderProyectosGrid(); showView('proyectos'); });
 
 // ---------------------------------------------------------------------
 // Editor de proyecto: ítems cotizados
