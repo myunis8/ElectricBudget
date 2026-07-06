@@ -1,0 +1,1630 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<title>Presupuestos Eléctricos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --navy: #16283f;
+  --navy-deep: #0e1c2e;
+  --paper: #f1f3f2;
+  --panel: #ffffff;
+  --line: #dde3e2;
+  --ink: #1c2733;
+  --muted: #5b6b7a;
+  --amber: #e2a33d;
+  --amber-deep: #c07f1f;
+  --copper: #b5651d;
+  --copper-soft: #f4e3d3;
+  --slate: #5b6b7a;
+  --slate-soft: #eef1f3;
+  --green: #2f7d5c;
+  --danger: #b3432f;
+  --radius: 10px;
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+
+*{ box-sizing:border-box; }
+body{ margin:0; background:var(--paper); color:var(--ink); }
+h1,h2,h3, .display{ font-family:'Space Grotesk', sans-serif; }
+.mono{ font-family:'IBM Plex Mono', monospace; }
+
+/* ---------- header ---------- */
+header.app-header{
+  background: var(--navy);
+  background-image:
+    linear-gradient(90deg, rgba(226,163,61,0.08) 1px, transparent 1px),
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 42px 42px, 42px 42px;
+  color:#eef2f5;
+  padding: 22px 28px 0 28px;
+  border-bottom: 3px solid var(--amber);
+  position: relative;
+}
+header.app-header .head-row{
+  display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+}
+header.app-header h1{ font-size: 1.5rem; margin:0 0 2px 0; letter-spacing:0.2px; }
+header.app-header p{ margin:0 0 16px 0; color:#9fb3c4; font-size:0.85rem; }
+nav.tabs{ display:flex; gap:6px; }
+.tab-btn{
+  appearance:none; border:none; cursor:pointer;
+  background: rgba(255,255,255,0.06);
+  color:#cddbe6;
+  font-family:'Space Grotesk', sans-serif;
+  font-weight:600; font-size:0.85rem;
+  padding:10px 18px 12px 18px;
+  border-radius:8px 8px 0 0;
+  display:flex; align-items:center; gap:8px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.tab-btn .switch-dot{
+  width:8px; height:8px; border-radius:50%;
+  background:#4a6178; box-shadow: inset 0 0 0 2px rgba(0,0,0,0.15);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.tab-btn.active{ background:var(--paper); color:var(--navy); }
+.tab-btn.active .switch-dot{ background:var(--amber); box-shadow:0 0 0 2px rgba(226,163,61,0.35); }
+.tab-btn:hover:not(.active){ background:rgba(255,255,255,0.12); }
+
+/* ---------- layout ---------- */
+main{ max-width: 980px; margin:0 auto; padding: 24px 20px 60px 20px; }
+.view{ display:none; }
+.view.active{ display:block; }
+
+.panel{ background:var(--panel); border:1px solid var(--line); border-radius: var(--radius); padding: 20px; margin-bottom: 18px; }
+.panel-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+.panel-head h2{ margin:0; font-size:1.05rem; color:var(--navy); }
+.panel-head .hint{ font-size:0.78rem; color:var(--muted); }
+
+.info-banner{
+  background:var(--slate-soft); border:1px solid var(--line); border-left:4px solid var(--slate);
+  border-radius:8px; padding:10px 14px; font-size:0.8rem; color:var(--muted); margin-bottom:14px;
+}
+
+/* ---------- buttons ---------- */
+button{ font-family:inherit; cursor:pointer; }
+.btn{ border:1px solid transparent; border-radius:7px; padding:9px 16px; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:6px; }
+.btn-primary{ background:var(--amber); color:#2a1c05; }
+.btn-primary:hover{ background:var(--amber-deep); }
+.btn-ghost{ background:transparent; color:var(--navy); border-color:var(--line); }
+.btn-ghost:hover{ background:#eef1f0; }
+.btn-danger{ background:transparent; color:var(--danger); border-color:#e6cdc5; }
+.btn-danger:hover{ background:#fbeeea; }
+.btn-copper{ background:var(--copper); color:#fff; }
+.btn-copper:hover{ background:#984f16; }
+.btn-sm{ padding:5px 10px; font-size:0.72rem; }
+.btn[disabled]{ opacity:0.45; cursor:not-allowed; }
+
+/* ---------- price table ---------- */
+table.price-table{ width:100%; border-collapse:collapse; font-size:0.86rem; }
+table.price-table th{ text-align:left; font-family:'Space Grotesk',sans-serif; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); padding:6px 8px; border-bottom:2px solid var(--line); }
+table.price-table td{ padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:middle; }
+table.price-table tr:hover td{ background:#fafbfa; }
+.cat-row td{ font-family:'Space Grotesk', sans-serif; font-weight:600; color:var(--navy); background:#eef2f0; padding-top:10px; padding-bottom:6px; font-size:0.8rem; }
+.cat-row.extra td{ color:var(--copper); background:var(--copper-soft); }
+input.price-input, input.qty-input{ width:110px; padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-family:'IBM Plex Mono', monospace; font-size:0.85rem; }
+input.qty-input{ width:70px; text-align:center; }
+input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--line); border-radius:6px; font-size:0.88rem; width:100%; font-family:'IBM Plex Sans', sans-serif; }
+.badge-extra{ font-size:0.65rem; font-family:'Space Grotesk',sans-serif; font-weight:600; color:var(--copper); border:1px solid var(--copper); border-radius:20px; padding:1px 8px; }
+.icon-btn{ background:none; border:none; color:var(--muted); padding:4px; border-radius:5px; font-size:0.9rem; }
+.icon-btn:hover{ background:#eee; color:var(--danger); }
+
+/* ---------- add item form ---------- */
+.add-form{ display:grid; grid-template-columns: 1.4fr 1.6fr 0.7fr 0.9fr auto auto; gap:8px; align-items:end; margin-top:14px; padding-top:14px; border-top:1px dashed var(--line); }
+.add-form label{ font-size:0.68rem; text-transform:uppercase; letter-spacing:0.04em; color:var(--muted); display:block; margin-bottom:4px; }
+.add-form .field{ display:flex; flex-direction:column; }
+.add-form .chk{ display:flex; align-items:center; gap:6px; font-size:0.75rem; color:var(--muted); white-space:nowrap; }
+
+/* ---------- project cards ---------- */
+.proyectos-grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(230px,1fr)); gap:14px; }
+.proyecto-card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:16px; display:flex; flex-direction:column; gap:8px; position:relative; }
+.proyecto-card h3{ margin:0; font-size:1rem; color:var(--navy); }
+.proyecto-card .meta{ font-size:0.78rem; color:var(--muted); }
+.proyecto-card .total{ font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:1.05rem; color:var(--green); margin-top:4px; }
+.proyecto-card .card-actions{ display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+.empty-state{ text-align:center; padding:50px 20px; color:var(--muted); border:1.5px dashed var(--line); border-radius:var(--radius); }
+.empty-state .display{ color:var(--navy); font-size:1.1rem; margin-bottom:6px; }
+
+/* ---------- editor ---------- */
+.form-grid{ display:grid; grid-template-columns: repeat(2, 1fr); gap:14px; margin-bottom:6px; }
+.form-grid .field label{ font-size:0.7rem; text-transform:uppercase; letter-spacing:0.04em; color:var(--muted); display:block; margin-bottom:4px; }
+.categoria-block{ margin-bottom:16px; }
+.categoria-block h3{ font-size:0.85rem; color:var(--navy); margin:0 0 8px 0; display:flex; align-items:center; gap:8px; }
+.categoria-block.extra h3{ color:var(--copper); }
+.categoria-block h3 .badge-extra{ font-size:0.6rem; }
+.item-row{ display:grid; grid-template-columns: 2fr 0.6fr 1fr 0.7fr 1fr; gap:10px; align-items:center; padding:7px 4px; border-bottom:1px solid var(--line); font-size:0.85rem; }
+.item-row .row-name{ color:var(--ink); }
+.item-row .row-unit{ color:var(--muted); font-size:0.78rem; }
+.item-row .row-subtotal{ font-family:'IBM Plex Mono',monospace; text-align:right; color:var(--ink); }
+
+.totals-box{ margin-top:18px; padding:16px 18px; background:var(--navy); color:#eef2f5; border-radius:var(--radius); display:flex; flex-direction:column; gap:6px; }
+.totals-box .line{ display:flex; justify-content:space-between; font-size:0.88rem; color:#b9c8d4; }
+.totals-box .line.total{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:1.2rem; color:var(--amber); border-top:1px solid rgba(255,255,255,0.15); padding-top:10px; margin-top:4px; }
+.editor-actions{ display:flex; gap:10px; margin-top:18px; flex-wrap:wrap; }
+
+/* ---------- circuitos ---------- */
+.circuitos-sub{ margin-bottom:18px; }
+.circuitos-sub h3{ font-size:0.85rem; color:var(--navy); margin:0 0 8px 0; }
+.circuitos-simple-row{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:10px; }
+.circuitos-simple-row .field label, .circuitos-tablero-count label{ font-size:0.7rem; text-transform:uppercase; letter-spacing:0.04em; color:var(--muted); display:block; margin-bottom:4px; }
+.circuitos-tablero-count{ max-width:220px; margin-bottom:18px; }
+.dyn-row{ display:grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap:8px; align-items:center; margin-bottom:8px; }
+.dyn-row input, .dyn-row select{ padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:0.82rem; }
+.dyn-row-header{ display:grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap:8px; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.04em; color:var(--muted); margin-bottom:4px; }
+.resumen-circuitos{ display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:10px; }
+.resumen-circuitos table{ width:100%; border-collapse:collapse; font-size:0.82rem; }
+.resumen-circuitos th{ text-align:left; font-size:0.68rem; text-transform:uppercase; color:var(--muted); border-bottom:2px solid var(--line); padding:4px 6px; }
+.resumen-circuitos td{ padding:5px 6px; border-bottom:1px solid var(--line); }
+.resumen-circuitos td.num{ text-align:center; font-family:'IBM Plex Mono',monospace; }
+.resumen-vacio{ font-size:0.78rem; color:var(--muted); font-style:italic; padding:6px 0; }
+
+.toast{ position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--navy); color:#eef2f5; padding:10px 20px; border-radius:8px; font-size:0.85rem; box-shadow:0 6px 18px rgba(0,0,0,0.25); opacity:0; pointer-events:none; transition: opacity 0.2s ease, transform 0.2s ease; z-index: 50; }
+.toast.show{ opacity:1; transform:translateX(-50%) translateY(-6px); }
+
+@media (max-width: 640px){
+  .add-form{ grid-template-columns: 1fr 1fr; }
+  .form-grid{ grid-template-columns: 1fr; }
+  .item-row{ grid-template-columns: 1.6fr 0.6fr 0.8fr 0.6fr; }
+  .item-row .row-subtotal{ display:none; }
+  .circuitos-simple-row{ grid-template-columns: 1fr; }
+  .dyn-row, .dyn-row-header{ grid-template-columns: 1fr 1fr; }
+  .resumen-circuitos{ grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="head-row">
+    <div>
+      <h1>Presupuestos Eléctricos</h1>
+      <p>Lista de precios y presupuestos por obra</p>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px; padding-bottom:16px; flex-wrap:wrap;">
+      <span id="sync-estado" class="hint" style="color:#9fb3c4;">⚪ Sincronización no configurada</span>
+      <button class="btn btn-ghost btn-sm" id="btn-sync-config" style="border-color:rgba(255,255,255,0.25); color:#cddbe6;">⚙ Sincronización</button>
+      <button class="btn btn-ghost btn-sm" id="btn-exportar" style="border-color:rgba(255,255,255,0.25); color:#cddbe6;">⇩ Exportar todo</button>
+      <button class="btn btn-ghost btn-sm" id="btn-importar" style="border-color:rgba(255,255,255,0.25); color:#cddbe6;">⇧ Importar</button>
+      <input type="file" id="importar-input" accept="application/json" style="display:none;">
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab-btn" data-view="proyectos"><span class="switch-dot"></span>Proyectos</button>
+    <button class="tab-btn" data-view="precios"><span class="switch-dot"></span>Precios</button>
+  </nav>
+</header>
+
+<!-- ---- Overlay: configuración de sincronización con GitHub ---- -->
+<div id="sync-overlay" style="display:none; position:fixed; inset:0; background:rgba(14,28,46,0.55); z-index:100; align-items:flex-start; justify-content:center; padding:40px 20px; overflow:auto;">
+  <div class="panel" style="max-width:520px; width:100%; margin:0;">
+    <div class="panel-head">
+      <h2 class="display">Sincronización entre dos personas</h2>
+      <button class="btn btn-ghost btn-sm" id="btn-sync-cerrar">✕ Cerrar</button>
+    </div>
+    <div class="info-banner">
+      Esto guarda tus proyectos y precios en un repositorio de GitHub compartido, para que la otra
+      persona vea lo mismo que vos. Cada uno carga acá su propia clave (token) — nunca se comparte
+      el token, solo los datos.
+    </div>
+    <div class="form-grid" style="grid-template-columns: 1fr;">
+      <div class="field"><label>Usuario u organización de GitHub</label><input class="text-input" id="sync-owner" placeholder="Ej: juanperez"></div>
+      <div class="field"><label>Nombre del repositorio</label><input class="text-input" id="sync-repo" placeholder="Ej: presupuestos-datos"></div>
+      <div class="field"><label>Tu token personal de GitHub</label><input class="text-input mono" id="sync-token" type="password" placeholder="ghp_..."></div>
+    </div>
+    <div style="margin:10px 0 16px 0;">
+      <button class="btn btn-ghost btn-sm" id="btn-sync-ayuda">¿Cómo consigo el usuario, repositorio y token?</button>
+      <div id="sync-ayuda" style="display:none; font-size:0.82rem; color:var(--muted); margin-top:10px; line-height:1.6;">
+        <b>1. Creá el repositorio (una sola vez, lo hace cualquiera de los dos):</b><br>
+        Entrá a github.com → botón verde "New" → nombre por ejemplo <span class="mono">presupuestos-datos</span> →
+        marcá "Private" → "Create repository".<br><br>
+        <b>2. Invitá a la otra persona:</b><br>
+        Dentro del repositorio → Settings → Collaborators → "Add people" → buscála por su usuario de GitHub.
+        Ella tiene que aceptar la invitación (le llega por mail o en github.com/notifications).<br><br>
+        <b>3. Cada uno genera su propio token:</b><br>
+        github.com → foto de perfil → Settings → (al final del menú izquierdo) Developer settings →
+        Personal access tokens → Fine-grained tokens → "Generate new token" → elegí el repositorio
+        <span class="mono">presupuestos-datos</span> → en "Repository permissions" poné "Contents: Read and write" →
+        Generate. Copiá el token (empieza con <span class="mono">github_pat_</span> o <span class="mono">ghp_</span>) y pegalo acá arriba.
+        <br><br>
+        <b>Usuario y repositorio</b> son los mismos para los dos (el dueño del repositorio y su nombre).
+        <b>El token es distinto para cada persona</b> y no hay que compartirlo.
+      </div>
+    </div>
+    <div class="editor-actions">
+      <button class="btn btn-primary" id="btn-sync-guardar">Guardar y sincronizar</button>
+      <button class="btn btn-ghost" id="btn-sync-ahora">Sincronizar ahora</button>
+      <button class="btn btn-danger" id="btn-sync-quitar">Desconectar</button>
+    </div>
+  </div>
+</div>
+
+<main>
+
+  <!-- ================= VISTA: PROYECTOS (lista) ================= -->
+  <section id="view-proyectos" class="view">
+    <div class="panel-head" style="margin-bottom:14px;">
+      <h2 class="display">Tus proyectos</h2>
+      <button class="btn btn-primary" id="btn-nuevo-proyecto">+ Nuevo proyecto</button>
+    </div>
+    <div id="proyectos-grid" class="proyectos-grid"></div>
+    <div id="proyectos-empty" class="empty-state" style="display:none;">
+      <div class="display">Todavía no cargaste ningún proyecto</div>
+      <div>Creá el primero con "+ Nuevo proyecto" para empezar a armar el presupuesto.</div>
+    </div>
+  </section>
+
+  <!-- ================= VISTA: PRECIOS ================= -->
+  <section id="view-precios" class="view">
+    <div class="panel">
+      <div class="panel-head">
+        <h2 class="display">Lista de precios</h2>
+        <button class="btn btn-ghost btn-sm" id="btn-migrar-precios">Actualizar categorías</button>
+      </div>
+      <div class="info-banner">
+        Estos son los ítems que se cotizan directamente en el presupuesto: puntos, tomas, iluminación,
+        tableros, puesta a tierra y trabajos adicionales. Las térmicas y diferenciales ya no se cotizan
+        acá — se calculan solas en la sección "Circuitos" de cada proyecto, y su costo va incluido en el
+        precio del tablero.
+      </div>
+      <table class="price-table" id="price-table">
+        <thead>
+          <tr><th style="width:38%">Ítem</th><th style="width:12%">Unidad</th><th style="width:18%">Precio unitario</th><th style="width:14%"></th></tr>
+        </thead>
+        <tbody id="price-table-body"></tbody>
+      </table>
+
+      <div class="add-form">
+        <div class="field"><label>Categoría</label><input class="text-input" id="new-categoria" list="categorias-list" placeholder="Ej: Iluminación"></div>
+        <datalist id="categorias-list"></datalist>
+        <div class="field"><label>Ítem</label><input class="text-input" id="new-item" placeholder="Ej: Artefacto aislado"></div>
+        <div class="field"><label>Unidad</label><input class="text-input" id="new-unidad" value="u"></div>
+        <div class="field"><label>Precio</label><input class="text-input mono" id="new-precio" type="number" min="0" step="0.01" value="0"></div>
+        <div class="field chk"><label style="visibility:hidden">.</label><label class="chk"><input type="checkbox" id="new-extra"> Trabajo aparte</label></div>
+        <div class="field"><label style="visibility:hidden">.</label><button class="btn btn-copper" id="btn-add-item">+ Agregar</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= VISTA: EDITOR DE PROYECTO ================= -->
+  <section id="view-editor" class="view">
+    <div class="panel">
+      <div class="panel-head">
+        <h2 class="display" id="editor-title">Nuevo proyecto</h2>
+        <button class="btn btn-ghost" id="btn-volver">&larr; Volver a proyectos</button>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Nombre del proyecto</label><input class="text-input" id="f-nombre" placeholder="Ej: Casa Rodríguez"></div>
+        <div class="field"><label>Cliente</label><input class="text-input" id="f-cliente"></div>
+        <div class="field"><label>Obra / dirección</label><input class="text-input" id="f-obra"></div>
+        <div class="field"><label>Fecha</label><input class="text-input" id="f-fecha" type="date"></div>
+        <div class="field"><label>Tipo de instalación</label>
+          <select class="text-input" id="f-tipo"><option>Monofásica</option><option>Trifásica</option></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2 class="display">Cantidades del presupuesto</h2>
+        <button class="btn btn-ghost btn-sm" id="btn-refrescar-precios">Actualizar precios desde la lista</button>
+      </div>
+      <div id="editor-items"></div>
+
+      <div class="totals-box">
+        <div class="line"><span>Subtotal instalación</span><span class="mono" id="tot-instalacion">$ 0</span></div>
+        <div class="line"><span>Subtotal trabajos adicionales</span><span class="mono" id="tot-extras">$ 0</span></div>
+        <div class="line total"><span>Total general</span><span class="mono" id="tot-general">$ 0</span></div>
+      </div>
+
+      <div class="editor-actions">
+        <button class="btn btn-primary" id="btn-guardar">Guardar proyecto</button>
+        <button class="btn btn-copper" id="btn-pdf-presupuesto">Generar PDF presupuesto</button>
+        <a class="btn btn-ghost" id="btn-pdf-presupuesto-link" style="display:none;" target="_blank">Descargar (si no se descargó solo)</a>
+      </div>
+    </div>
+
+    <!-- ---- Plano de obra ---- -->
+    <div class="panel">
+      <div class="panel-head">
+        <h2 class="display">Plano de obra</h2>
+        <span class="hint">Imagen o PDF (máximo 3 MB) — se guarda con el proyecto</span>
+      </div>
+      <div id="plano-vacio" class="empty-state" style="padding:30px 20px;">
+        <div class="display" style="font-size:1rem;">Todavía no subiste el plano</div>
+        <div>Subí una imagen o un PDF para tenerlo a mano en este proyecto.</div>
+        <div style="margin-top:14px;">
+          <input type="file" id="plano-input" accept="image/*,application/pdf" style="display:none;">
+          <button class="btn btn-primary btn-sm" id="btn-subir-plano">Subir plano</button>
+        </div>
+      </div>
+      <div id="plano-contenido" style="display:none;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+          <span class="mono" id="plano-nombre" style="font-size:0.82rem; color:var(--muted);"></span>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-ghost btn-sm" id="btn-reemplazar-plano">Reemplazar</button>
+            <a class="btn btn-ghost btn-sm" id="btn-descargar-plano" download>Descargar</a>
+            <button class="btn btn-danger btn-sm" id="btn-quitar-plano">Quitar</button>
+          </div>
+        </div>
+        <div id="plano-preview" style="border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#f8f9f9;"></div>
+      </div>
+    </div>
+
+    <!-- ---- Circuitos: solo de referencia, no afecta el total ---- -->
+    <div class="panel">
+      <div class="panel-head">
+        <h2 class="display">Circuitos y tableros</h2>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <span class="hint">Solo de referencia — no suma al total</span>
+          <button class="btn btn-copper btn-sm" id="btn-pdf-materiales">Generar PDF materiales</button>
+        </div>
+      </div>
+      <div class="info-banner">
+        Esto es para saber cuántas térmicas y diferenciales comprar. Ya está incluido en el precio
+        del tablero, así que no afecta el total del presupuesto.
+      </div>
+
+      <div class="circuitos-tablero-count">
+        <label>Cantidad de tableros</label>
+        <input class="text-input mono" id="c-tableros" type="number" min="0" step="1" value="0">
+      </div>
+
+      <div class="circuitos-sub">
+        <h3>Iluminación</h3>
+        <div class="circuitos-simple-row">
+          <div class="field"><label>Cantidad de circuitos</label><input class="text-input mono" id="c-ilum-cant" type="number" min="0" step="1" value="0"></div>
+          <div class="field"><label>Térmica</label><input class="text-input" id="c-ilum-amp" list="amperajes-list" value="10A"></div>
+        </div>
+      </div>
+
+      <div class="circuitos-sub">
+        <h3>Tomas generales</h3>
+        <div class="circuitos-simple-row">
+          <div class="field"><label>Cantidad de circuitos</label><input class="text-input mono" id="c-tomas-cant" type="number" min="0" step="1" value="0"></div>
+          <div class="field"><label>Térmica</label><input class="text-input" id="c-tomas-amp" list="amperajes-list" value="20A"></div>
+        </div>
+      </div>
+
+      <div class="circuitos-sub">
+        <h3>Tomas especiales</h3>
+        <div class="dyn-row-header"><div>Nombre</div><div>Cantidad</div><div>Térmica</div><div></div><div></div></div>
+        <div id="especiales-rows"></div>
+        <button class="btn btn-ghost btn-sm" id="btn-add-especial">+ Agregar toma especial</button>
+      </div>
+
+      <div class="circuitos-sub">
+        <h3>Diferenciales</h3>
+        <div class="dyn-row-header"><div>Nombre / ubicación</div><div>Tipo</div><div>Amperaje</div><div>Cantidad</div><div></div></div>
+        <div id="diferenciales-rows"></div>
+        <button class="btn btn-ghost btn-sm" id="btn-add-diferencial">+ Agregar diferencial</button>
+      </div>
+
+      <datalist id="amperajes-list">
+        <option value="10A"><option value="16A"><option value="20A"><option value="25A"><option value="32A"><option value="40A">
+      </datalist>
+
+      <div class="resumen-circuitos">
+        <div>
+          <h3 style="font-size:0.8rem;color:var(--navy);margin:0 0 6px 0;">Térmicas necesarias</h3>
+          <div id="resumen-termicas"></div>
+        </div>
+        <div>
+          <h3 style="font-size:0.8rem;color:var(--navy);margin:0 0 6px 0;">Diferenciales necesarios</h3>
+          <div id="resumen-diferenciales"></div>
+        </div>
+      </div>
+      <a class="btn btn-ghost btn-sm" id="btn-pdf-materiales-link" style="display:none; margin-top:12px;" target="_blank">Descargar (si no se descargó solo)</a>
+    </div>
+  </section>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SEED_PRECIOS = [
+  ["Puntos","Punto de luz","u",false],
+  ["Puntos","Punto combinado","u",false],
+  ["Tomas","Tomacorriente común","u",false],
+  ["Tomas","Boca combinada (interruptor + toma)","u",false],
+  ["Tomas","Toma especial - Aire acondicionado","u",false],
+  ["Tomas","Toma especial - Cocina","u",false],
+  ["Tomas","Toma especial - Termotanque","u",false],
+  ["Iluminación","Artefacto aislado","u",false],
+  ["Iluminación","Artefacto no aislado","u",false],
+  ["Tableros","Tablero seccional monofásico","u",false],
+  ["Tableros","Tablero seccional trifásico","u",false],
+  ["Tableros","Tablero principal monofásico","u",false],
+  ["Tableros","Tablero principal trifásico","u",false],
+  ["Puesta a tierra","Jabalina + cable + conexión (PAT)","u",false],
+  ["Trabajos adicionales","Conexión al medidor (trabajo en tensión)","u",true],
+];
+
+let precios = [];              // [{id, categoria, item, unidad, precio, esExtra}]
+let proyectosIndex = [];       // [{id, nombre, cliente, fecha, total}]
+let proyectoActual = null;     // objeto proyecto completo en edición
+
+// ---------------------------------------------------------------------
+// Utilidades
+// ---------------------------------------------------------------------
+function uid(){
+  return (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2));
+}
+function money(n){
+  const v = Number(n) || 0;
+  return '$ ' + v.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._timer);
+  showToast._timer = setTimeout(()=> t.classList.remove('show'), 2200);
+}
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function fechaLegible(iso){
+  if(!iso) return '';
+  const [y,m,d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+// ---------------------------------------------------------------------
+// Adaptador de almacenamiento
+// Usa window.storage si está disponible (viendo el archivo como artefacto
+// dentro de Claude). Si no existe -- por ejemplo, si abriste este archivo
+// haciendo doble clic directamente en tu navegador -- usa localStorage
+// del navegador como respaldo, para que igual quede todo guardado ahí.
+// ---------------------------------------------------------------------
+const LS_PREFIX = 'presupuestos-electricos::';
+const usaAlmacenamientoLocal = (typeof window.storage === 'undefined');
+
+function lsKey(key, shared){ return LS_PREFIX + (shared ? 'shared:' : 'personal:') + key; }
+
+async function storageGet(key, shared=false){
+  if(!usaAlmacenamientoLocal) return window.storage.get(key, shared);
+  const raw = window.localStorage.getItem(lsKey(key, shared));
+  if(raw === null) throw new Error('No existe la clave: ' + key);
+  return { key, value: raw, shared };
+}
+async function storageSet(key, value, shared=false){
+  if(!usaAlmacenamientoLocal) return window.storage.set(key, value, shared);
+  window.localStorage.setItem(lsKey(key, shared), value);
+  return { key, value, shared };
+}
+async function storageDelete(key, shared=false){
+  if(!usaAlmacenamientoLocal) return window.storage.delete(key, shared);
+  const existed = window.localStorage.getItem(lsKey(key, shared)) !== null;
+  window.localStorage.removeItem(lsKey(key, shared));
+  return { key, deleted: existed, shared };
+}
+
+// ---------------------------------------------------------------------
+// Storage: precios
+// ---------------------------------------------------------------------
+async function loadPrecios(){
+  let lista;
+  let esNueva = false;
+  try{
+    const res = await storageGet('precios', false);
+    lista = (res && res.value) ? JSON.parse(res.value) : null;
+  }catch(e){ /* no existe todavía */ }
+
+  if(!lista){
+    lista = SEED_PRECIOS.map(([categoria,item,unidad,esExtra]) => ({
+      id: uid(), categoria, item, unidad, precio: 0, esExtra
+    }));
+    esNueva = true;
+    await storageSet('precios', JSON.stringify(lista), false).catch(()=>{});
+  }
+
+  if(!esNueva && necesitaMigracion(lista)){
+    lista = construirListaMigrada(lista);
+    await storageSet('precios', JSON.stringify(lista), false).catch(()=>{});
+    setTimeout(() => showToast('Actualicé tu lista de precios: nuevas categorías de Puntos/Tomas/Iluminación, y saqué Térmicas y Diferenciales'), 400);
+  }
+  return lista;
+}
+async function savePrecios(list){
+  try{
+    await storageSet('precios', JSON.stringify(list), false);
+    await storageSet('precios-updated-at', String(Date.now()), false);
+    if(githubConfig) sincronizarConGitHub({ push: true, silencioso: true });
+  }catch(e){ showToast('No se pudo guardar la lista de precios'); console.error(e); }
+}
+async function getPreciosUpdatedAt(){
+  try{ const r = await storageGet('precios-updated-at', false); return parseInt(r.value) || 0; }
+  catch(e){ return 0; }
+}
+
+// Ítems obsoletos que ya no se cotizan como línea aparte en el presupuesto
+// (térmicas y diferenciales se calculan en la sección Circuitos de cada proyecto)
+const CATEGORIAS_OBSOLETAS = ['Térmicas', 'Diferenciales'];
+
+function necesitaMigracion(lista){
+  const categorias = new Set(lista.map(p => p.categoria));
+  const tieneObsoletas = lista.some(p => CATEGORIAS_OBSOLETAS.includes(p.categoria));
+  const faltaIluminacion = !categorias.has('Iluminación');
+  const faltaPuntoCombinado = !lista.some(p => p.item === 'Punto combinado');
+  const faltaPuntosSeparados = !categorias.has('Puntos') || !categorias.has('Tomas');
+  return tieneObsoletas || faltaIluminacion || faltaPuntoCombinado || faltaPuntosSeparados;
+}
+
+function construirListaMigrada(listaActual){
+  const precioPorNombre = {};
+  listaActual.forEach(p => { precioPorNombre[p.item] = p.precio; });
+
+  const nuevaLista = SEED_PRECIOS.map(([categoria,item,unidad,esExtra]) => ({
+    id: uid(), categoria, item, unidad, precio: (precioPorNombre[item] ?? 0), esExtra
+  }));
+
+  const nombresBase = new Set(SEED_PRECIOS.map(x => x[1]));
+  listaActual.forEach(p => {
+    if(!CATEGORIAS_OBSOLETAS.includes(p.categoria) && !nombresBase.has(p.item)){
+      nuevaLista.push(p); // conservar ítems personalizados que el usuario haya agregado
+    }
+  });
+  return nuevaLista;
+}
+
+async function migrarPrecios(){
+  const ok = confirm(
+    'Esto va a:\n' +
+    '- Sacar Térmicas y Diferenciales de la lista de precios (ahora se calculan en la sección Circuitos de cada proyecto)\n' +
+    '- Separar "Puntos y Bocas" en "Puntos" y "Tomas", y agregar "Punto combinado"\n' +
+    '- Agregar la categoría "Iluminación" (Artefacto aislado / no aislado)\n\n' +
+    'Los precios que ya cargaste para ítems que se mantienen NO se pierden.\n\n¿Continuar?'
+  );
+  if(!ok) return;
+
+  precios = construirListaMigrada(precios);
+  await savePrecios(precios);
+  renderPreciosTable();
+  renderCategoriasDatalist();
+  showToast('Lista de precios actualizada');
+}
+
+// ---------------------------------------------------------------------
+// Storage: proyectos
+// ---------------------------------------------------------------------
+async function loadProyectosIndex(){
+  try{
+    const res = await storageGet('proyectos-index', false);
+    if(res && res.value) return JSON.parse(res.value);
+  }catch(e){ /* no existe todavía */ }
+  return [];
+}
+async function saveProyectosIndex(){
+  try{ await storageSet('proyectos-index', JSON.stringify(proyectosIndex), false); }
+  catch(e){ showToast('No se pudo guardar el índice de proyectos'); console.error(e); }
+}
+async function loadProyecto(id){
+  try{
+    const res = await storageGet('proyecto:' + id, false);
+    if(res && res.value) return JSON.parse(res.value);
+  }catch(e){ console.error(e); }
+  return null;
+}
+async function saveProyectoActual(){
+  proyectoActual.updatedAt = Date.now();
+  const {instalacion, extras} = calcularTotales(proyectoActual);
+  try{
+    await storageSet('proyecto:' + proyectoActual.id, JSON.stringify(proyectoActual), false);
+  }catch(e){ showToast('No se pudo guardar el proyecto: ' + e.message); console.error(e); return; }
+
+  const idx = proyectosIndex.findIndex(p => p.id === proyectoActual.id);
+  const entry = {
+    id: proyectoActual.id,
+    nombre: proyectoActual.nombre || '(sin nombre)',
+    cliente: proyectoActual.cliente || '',
+    fecha: proyectoActual.fecha || '',
+    total: instalacion + extras,
+  };
+  if(idx >= 0) proyectosIndex[idx] = entry; else proyectosIndex.push(entry);
+  await saveProyectosIndex();
+  showToast('Proyecto guardado');
+  if(githubConfig) sincronizarConGitHub({ push: true, silencioso: true });
+}
+async function eliminarProyecto(id){
+  if(!confirm('¿Eliminar este proyecto? No se puede deshacer.')) return;
+  try{ await storageDelete('proyecto:' + id, false); }catch(e){ /* puede no existir */ }
+  proyectosIndex = proyectosIndex.filter(p => p.id !== id);
+  await saveProyectosIndex();
+  renderProyectosGrid();
+  showToast('Proyecto eliminado');
+}
+
+// ---------------------------------------------------------------------
+// Navegación entre vistas
+// ---------------------------------------------------------------------
+function showView(name){
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.view === name));
+}
+document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
+document.getElementById('btn-migrar-precios').addEventListener('click', migrarPrecios);
+
+// ---------------------------------------------------------------------
+// Vista: Precios
+// ---------------------------------------------------------------------
+function categoriasOrdenadas(){
+  const seen = [];
+  precios.forEach(p => { if(!seen.includes(p.categoria)) seen.push(p.categoria); });
+  return seen;
+}
+
+function renderPreciosTable(){
+  const body = document.getElementById('price-table-body');
+  body.innerHTML = '';
+  categoriasOrdenadas().forEach(categoria => {
+    const items = precios.filter(p => p.categoria === categoria);
+    const esExtra = items.some(i => i.esExtra);
+    const trCat = document.createElement('tr');
+    trCat.className = 'cat-row' + (esExtra ? ' extra' : '');
+    trCat.innerHTML = `<td colspan="4">${categoria}${esExtra ? ' <span class="badge-extra">APARTE</span>' : ''}</td>`;
+    body.appendChild(trCat);
+
+    items.forEach(p => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${p.item}</td>
+        <td>${p.unidad}</td>
+        <td><input class="price-input mono" type="number" min="0" step="0.01" value="${p.precio}" data-id="${p.id}"></td>
+        <td><button class="icon-btn" title="Eliminar ítem" data-del="${p.id}">✕</button></td>`;
+      body.appendChild(tr);
+    });
+  });
+
+  body.querySelectorAll('input.price-input').forEach(inp => {
+    inp.addEventListener('change', async (e) => {
+      const item = precios.find(p => p.id === e.target.dataset.id);
+      if(item){ item.precio = parseFloat(e.target.value) || 0; await savePrecios(precios); showToast('Precio actualizado'); }
+    });
+  });
+  body.querySelectorAll('button[data-del]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      if(!confirm('¿Eliminar este ítem de la lista de precios?')) return;
+      precios = precios.filter(p => p.id !== e.target.dataset.del);
+      await savePrecios(precios);
+      renderPreciosTable();
+      renderCategoriasDatalist();
+    });
+  });
+}
+
+function renderCategoriasDatalist(){
+  const list = document.getElementById('categorias-list');
+  list.innerHTML = '';
+  categoriasOrdenadas().forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c;
+    list.appendChild(opt);
+  });
+}
+
+document.getElementById('btn-add-item').addEventListener('click', async () => {
+  const categoria = document.getElementById('new-categoria').value.trim();
+  const item = document.getElementById('new-item').value.trim();
+  const unidad = document.getElementById('new-unidad').value.trim() || 'u';
+  const precio = parseFloat(document.getElementById('new-precio').value) || 0;
+  const esExtra = document.getElementById('new-extra').checked;
+  if(!categoria || !item){ showToast('Completá categoría e ítem'); return; }
+
+  precios.push({ id: uid(), categoria, item, unidad, precio, esExtra });
+  await savePrecios(precios);
+  renderPreciosTable();
+  renderCategoriasDatalist();
+  document.getElementById('new-item').value = '';
+  document.getElementById('new-precio').value = '0';
+  document.getElementById('new-extra').checked = false;
+  showToast('Ítem agregado');
+});
+
+// ---------------------------------------------------------------------
+// Vista: Proyectos (lista)
+// ---------------------------------------------------------------------
+function renderProyectosGrid(){
+  const grid = document.getElementById('proyectos-grid');
+  const empty = document.getElementById('proyectos-empty');
+  grid.innerHTML = '';
+  if(proyectosIndex.length === 0){ empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  proyectosIndex.slice().sort((a,b) => (b.fecha||'').localeCompare(a.fecha||'')).forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'proyecto-card';
+    card.innerHTML = `
+      <h3>${p.nombre}</h3>
+      <div class="meta">${p.cliente || 'Sin cliente'}${p.fecha ? ' · ' + fechaLegible(p.fecha) : ''}</div>
+      <div class="total">${money(p.total)}</div>
+      <div class="card-actions">
+        <button class="btn btn-ghost btn-sm" data-open="${p.id}">Abrir</button>
+        <button class="btn btn-danger btn-sm" data-del="${p.id}">Eliminar</button>
+      </div>`;
+    grid.appendChild(card);
+  });
+  grid.querySelectorAll('button[data-open]').forEach(btn => btn.addEventListener('click', () => abrirProyecto(btn.dataset.open)));
+  grid.querySelectorAll('button[data-del]').forEach(btn => btn.addEventListener('click', () => eliminarProyecto(btn.dataset.del)));
+}
+
+document.getElementById('btn-nuevo-proyecto').addEventListener('click', () => nuevoProyecto());
+document.getElementById('btn-volver').addEventListener('click', () => { renderProyectosGrid(); showView('proyectos'); });
+
+// ---------------------------------------------------------------------
+// Editor de proyecto: ítems cotizados
+// ---------------------------------------------------------------------
+function itemsIniciales(){
+  return precios.map(p => ({
+    precioId: p.id, categoria: p.categoria, item: p.item, unidad: p.unidad,
+    precio: p.precio, esExtra: p.esExtra, cantidad: 0
+  }));
+}
+function defaultCircuitos(){
+  return {
+    cantidadTableros: 0,
+    iluminacion: { cantidad: 0, amperaje: '10A' },
+    tomasGenerales: { cantidad: 0, amperaje: '20A' },
+    tomasEspeciales: [],
+    diferenciales: [],
+  };
+}
+function ensureCircuitos(proyecto){
+  if(!proyecto.circuitos) proyecto.circuitos = defaultCircuitos();
+  if(!Array.isArray(proyecto.circuitos.tomasEspeciales)) proyecto.circuitos.tomasEspeciales = [];
+  if(!Array.isArray(proyecto.circuitos.diferenciales)) proyecto.circuitos.diferenciales = [];
+  return proyecto.circuitos;
+}
+
+function nuevoProyecto(){
+  proyectoActual = {
+    id: uid(), nombre: '', cliente: '', obra: '', fecha: todayISO(), tipoInstalacion: 'Monofásica',
+    items: itemsIniciales(), circuitos: defaultCircuitos(), planoObra: null, createdAt: Date.now(),
+  };
+  abrirEditor('Nuevo proyecto');
+}
+async function abrirProyecto(id){
+  const p = await loadProyecto(id);
+  if(!p){ showToast('No se pudo abrir el proyecto'); return; }
+  proyectoActual = p;
+  ensureCircuitos(proyectoActual);
+  if(proyectoActual.planoObra === undefined) proyectoActual.planoObra = null;
+  abrirEditor(p.nombre || 'Proyecto');
+}
+
+function abrirEditor(titulo){
+  document.getElementById('editor-title').textContent = titulo;
+  document.getElementById('f-nombre').value = proyectoActual.nombre || '';
+  document.getElementById('f-cliente').value = proyectoActual.cliente || '';
+  document.getElementById('f-obra').value = proyectoActual.obra || '';
+  document.getElementById('f-fecha').value = proyectoActual.fecha || todayISO();
+  document.getElementById('f-tipo').value = proyectoActual.tipoInstalacion || 'Monofásica';
+  renderEditorItems();
+  renderCircuitosPanel();
+  renderPlanoObra();
+  showView('editor');
+}
+
+['f-nombre','f-cliente','f-obra','f-fecha','f-tipo'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    if(!proyectoActual) return;
+    proyectoActual.nombre = document.getElementById('f-nombre').value;
+    proyectoActual.cliente = document.getElementById('f-cliente').value;
+    proyectoActual.obra = document.getElementById('f-obra').value;
+    proyectoActual.fecha = document.getElementById('f-fecha').value;
+    proyectoActual.tipoInstalacion = document.getElementById('f-tipo').value;
+  });
+});
+
+function renderEditorItems(){
+  const cont = document.getElementById('editor-items');
+  cont.innerHTML = '';
+  const cats = [];
+  proyectoActual.items.forEach(it => { if(!cats.includes(it.categoria)) cats.push(it.categoria); });
+
+  cats.forEach(categoria => {
+    const items = proyectoActual.items.filter(it => it.categoria === categoria);
+    const esExtra = items.some(it => it.esExtra);
+    const block = document.createElement('div');
+    block.className = 'categoria-block' + (esExtra ? ' extra' : '');
+    block.innerHTML = `<h3>${categoria}${esExtra ? ' <span class="badge-extra">APARTE</span>' : ''}</h3>`;
+
+    items.forEach(it => {
+      const row = document.createElement('div');
+      row.className = 'item-row';
+      row.innerHTML = `
+        <div class="row-name">${it.item}</div>
+        <div class="row-unit">${it.unidad}</div>
+        <div class="mono">${money(it.precio)}</div>
+        <input class="qty-input" type="number" min="0" step="1" value="${it.cantidad}" data-precio-id="${it.precioId}">
+        <div class="row-subtotal">${money(it.precio * it.cantidad)}</div>`;
+      block.appendChild(row);
+    });
+    cont.appendChild(block);
+  });
+
+  cont.querySelectorAll('input.qty-input').forEach(inp => {
+    inp.addEventListener('input', (e) => {
+      const item = proyectoActual.items.find(it => it.precioId === e.target.dataset.precioId);
+      if(item){
+        item.cantidad = parseFloat(e.target.value) || 0;
+        e.target.closest('.item-row').querySelector('.row-subtotal').textContent = money(item.precio * item.cantidad);
+        actualizarTotales();
+      }
+    });
+  });
+  actualizarTotales();
+}
+
+function calcularTotales(proyecto){
+  let instalacion = 0, extras = 0;
+  proyecto.items.forEach(it => {
+    const monto = (it.precio||0) * (it.cantidad||0);
+    if(it.esExtra) extras += monto; else instalacion += monto;
+  });
+  return {instalacion, extras};
+}
+function actualizarTotales(){
+  const {instalacion, extras} = calcularTotales(proyectoActual);
+  document.getElementById('tot-instalacion').textContent = money(instalacion);
+  document.getElementById('tot-extras').textContent = money(extras);
+  document.getElementById('tot-general').textContent = money(instalacion + extras);
+}
+
+document.getElementById('btn-refrescar-precios').addEventListener('click', () => {
+  if(!proyectoActual) return;
+  if(!confirm('Esto va a reemplazar los precios unitarios cargados en este proyecto por los precios actuales de la lista. ¿Continuar?')) return;
+  proyectoActual.items.forEach(it => {
+    const actual = precios.find(p => p.id === it.precioId);
+    if(actual) it.precio = actual.precio;
+  });
+  renderEditorItems();
+  showToast('Precios actualizados');
+});
+
+document.getElementById('btn-guardar').addEventListener('click', async () => {
+  if(!proyectoActual.nombre){ showToast('Poné un nombre al proyecto antes de guardar'); return; }
+  await saveProyectoActual();
+});
+
+// ---------------------------------------------------------------------
+// Circuitos y tableros (solo de referencia)
+// ---------------------------------------------------------------------
+function renderCircuitosPanel(){
+  const c = ensureCircuitos(proyectoActual);
+  document.getElementById('c-tableros').value = c.cantidadTableros;
+  document.getElementById('c-ilum-cant').value = c.iluminacion.cantidad;
+  document.getElementById('c-ilum-amp').value = c.iluminacion.amperaje;
+  document.getElementById('c-tomas-cant').value = c.tomasGenerales.cantidad;
+  document.getElementById('c-tomas-amp').value = c.tomasGenerales.amperaje;
+  renderEspecialesRows();
+  renderDiferencialesRows();
+  renderResumenCircuitos();
+}
+
+document.getElementById('c-tableros').addEventListener('input', (e) => {
+  ensureCircuitos(proyectoActual).cantidadTableros = parseInt(e.target.value) || 0;
+});
+document.getElementById('c-ilum-cant').addEventListener('input', (e) => {
+  ensureCircuitos(proyectoActual).iluminacion.cantidad = parseInt(e.target.value) || 0;
+  renderResumenCircuitos();
+});
+document.getElementById('c-ilum-amp').addEventListener('input', (e) => {
+  ensureCircuitos(proyectoActual).iluminacion.amperaje = e.target.value.trim() || '10A';
+  renderResumenCircuitos();
+});
+document.getElementById('c-tomas-cant').addEventListener('input', (e) => {
+  ensureCircuitos(proyectoActual).tomasGenerales.cantidad = parseInt(e.target.value) || 0;
+  renderResumenCircuitos();
+});
+document.getElementById('c-tomas-amp').addEventListener('input', (e) => {
+  ensureCircuitos(proyectoActual).tomasGenerales.amperaje = e.target.value.trim() || '20A';
+  renderResumenCircuitos();
+});
+
+function renderEspecialesRows(){
+  const cont = document.getElementById('especiales-rows');
+  cont.innerHTML = '';
+  const c = ensureCircuitos(proyectoActual);
+  c.tomasEspeciales.forEach(row => {
+    const div = document.createElement('div');
+    div.className = 'dyn-row';
+    div.innerHTML = `
+      <input type="text" placeholder="Ej: Aire acondicionado" value="${row.nombre || ''}" data-field="nombre">
+      <input type="number" min="0" step="1" value="${row.cantidad || 0}" data-field="cantidad">
+      <input type="text" list="amperajes-list" value="${row.amperaje || '20A'}" data-field="amperaje">
+      <div></div>
+      <button class="icon-btn" title="Eliminar">✕</button>`;
+    const [inNombre, inCant, inAmp] = div.querySelectorAll('input');
+    inNombre.addEventListener('input', () => { row.nombre = inNombre.value; });
+    inCant.addEventListener('input', () => { row.cantidad = parseInt(inCant.value) || 0; renderResumenCircuitos(); });
+    inAmp.addEventListener('input', () => { row.amperaje = inAmp.value.trim() || '20A'; renderResumenCircuitos(); });
+    div.querySelector('button').addEventListener('click', () => {
+      c.tomasEspeciales = c.tomasEspeciales.filter(r => r.id !== row.id);
+      renderEspecialesRows();
+      renderResumenCircuitos();
+    });
+    cont.appendChild(div);
+  });
+}
+document.getElementById('btn-add-especial').addEventListener('click', () => {
+  const c = ensureCircuitos(proyectoActual);
+  c.tomasEspeciales.push({ id: uid(), nombre: '', cantidad: 1, amperaje: '20A' });
+  renderEspecialesRows();
+  renderResumenCircuitos();
+});
+
+function renderDiferencialesRows(){
+  const cont = document.getElementById('diferenciales-rows');
+  cont.innerHTML = '';
+  const c = ensureCircuitos(proyectoActual);
+  c.diferenciales.forEach(row => {
+    const div = document.createElement('div');
+    div.className = 'dyn-row';
+    div.innerHTML = `
+      <input type="text" placeholder="Ej: Tablero principal" value="${row.nombre || ''}" data-field="nombre">
+      <select data-field="tipo">
+        <option value="Bipolar"${row.tipo === 'Bipolar' ? ' selected' : ''}>Bipolar</option>
+        <option value="Tetrapolar"${row.tipo === 'Tetrapolar' ? ' selected' : ''}>Tetrapolar</option>
+      </select>
+      <input type="text" list="amperajes-list" value="${row.amperaje || '25A'}" data-field="amperaje">
+      <input type="number" min="0" step="1" value="${row.cantidad || 0}" data-field="cantidad">
+      <button class="icon-btn" title="Eliminar">✕</button>`;
+    const inNombre = div.querySelector('input[data-field="nombre"]');
+    const selTipo = div.querySelector('select[data-field="tipo"]');
+    const inAmp = div.querySelector('input[data-field="amperaje"]');
+    const inCant = div.querySelector('input[data-field="cantidad"]');
+    inNombre.addEventListener('input', () => { row.nombre = inNombre.value; });
+    selTipo.addEventListener('change', () => { row.tipo = selTipo.value; renderResumenCircuitos(); });
+    inAmp.addEventListener('input', () => { row.amperaje = inAmp.value.trim() || '25A'; renderResumenCircuitos(); });
+    inCant.addEventListener('input', () => { row.cantidad = parseInt(inCant.value) || 0; renderResumenCircuitos(); });
+    div.querySelector('button').addEventListener('click', () => {
+      c.diferenciales = c.diferenciales.filter(r => r.id !== row.id);
+      renderDiferencialesRows();
+      renderResumenCircuitos();
+    });
+    cont.appendChild(div);
+  });
+}
+document.getElementById('btn-add-diferencial').addEventListener('click', () => {
+  const c = ensureCircuitos(proyectoActual);
+  c.diferenciales.push({ id: uid(), nombre: '', tipo: 'Bipolar', amperaje: '25A', cantidad: 1 });
+  renderDiferencialesRows();
+  renderResumenCircuitos();
+});
+
+function amperajeOrden(a){
+  const n = parseInt(String(a).replace(/[^0-9]/g,''));
+  return isNaN(n) ? 9999 : n;
+}
+
+function calcularResumenCircuitos(c){
+  const termicasMapa = {};
+  function sumarTermica(amperaje, cantidad){
+    if(!cantidad) return;
+    const key = amperaje || 'Sin especificar';
+    termicasMapa[key] = (termicasMapa[key] || 0) + cantidad;
+  }
+  sumarTermica(c.iluminacion.amperaje, c.iluminacion.cantidad);
+  sumarTermica(c.tomasGenerales.amperaje, c.tomasGenerales.cantidad);
+  c.tomasEspeciales.forEach(row => sumarTermica(row.amperaje, row.cantidad));
+
+  const termicas = Object.keys(termicasMapa)
+    .map(amperaje => ({ amperaje, cantidad: termicasMapa[amperaje] }))
+    .sort((a,b) => amperajeOrden(a.amperaje) - amperajeOrden(b.amperaje));
+
+  const diferencialesMapa = {};
+  c.diferenciales.forEach(row => {
+    if(!row.cantidad) return;
+    const key = (row.tipo || 'Bipolar') + ' ' + (row.amperaje || '');
+    diferencialesMapa[key] = (diferencialesMapa[key] || 0) + row.cantidad;
+  });
+  const diferenciales = Object.keys(diferencialesMapa).map(key => ({ etiqueta: key, cantidad: diferencialesMapa[key] }));
+
+  return { termicas, diferenciales };
+}
+
+function renderResumenCircuitos(){
+  const c = ensureCircuitos(proyectoActual);
+  const resumen = calcularResumenCircuitos(c);
+
+  const contT = document.getElementById('resumen-termicas');
+  if(resumen.termicas.length === 0){
+    contT.innerHTML = '<div class="resumen-vacio">Todavía no cargaste circuitos.</div>';
+  }else{
+    contT.innerHTML = `<table><thead><tr><th>Térmica</th><th>Cant.</th></tr></thead><tbody>
+      ${resumen.termicas.map(t => `<tr><td>${t.amperaje}</td><td class="num">${t.cantidad}</td></tr>`).join('')}
+    </tbody></table>`;
+  }
+
+  const contD = document.getElementById('resumen-diferenciales');
+  if(resumen.diferenciales.length === 0){
+    contD.innerHTML = '<div class="resumen-vacio">Todavía no cargaste diferenciales.</div>';
+  }else{
+    contD.innerHTML = `<table><thead><tr><th>Diferencial</th><th>Cant.</th></tr></thead><tbody>
+      ${resumen.diferenciales.map(d => `<tr><td>${d.etiqueta}</td><td class="num">${d.cantidad}</td></tr>`).join('')}
+    </tbody></table>`;
+  }
+}
+
+// ---------------------------------------------------------------------
+// Generación de PDF
+// ---------------------------------------------------------------------
+function libreriasPdfListas(){
+  if(typeof window.jspdf === 'undefined' || !window.jspdf.jsPDF){
+    showToast('La librería para armar el PDF todavía no cargó. Revisá tu conexión y esperá unos segundos.');
+    return false;
+  }
+  if(typeof window.jspdf.jsPDF.API.autoTable !== 'function'){
+    showToast('No cargó el complemento de tablas del PDF. Revisá tu conexión a internet y volvé a intentar.');
+    return false;
+  }
+  return true;
+}
+
+document.getElementById('btn-pdf-presupuesto').addEventListener('click', () => {
+  if(!proyectoActual.nombre){ showToast('Poné un nombre al proyecto antes de generar el PDF'); return; }
+  if(!libreriasPdfListas()) return;
+  try{ generarPDFPresupuesto(proyectoActual); }
+  catch(e){ console.error(e); showToast('No se pudo generar el PDF (ver consola del navegador para el detalle)'); }
+});
+
+document.getElementById('btn-pdf-materiales').addEventListener('click', () => {
+  if(!proyectoActual.nombre){ showToast('Poné un nombre al proyecto antes de generar el PDF'); return; }
+  if(!libreriasPdfListas()) return;
+  try{ generarPDFMateriales(proyectoActual); }
+  catch(e){ console.error(e); showToast('No se pudo generar el PDF (ver consola del navegador para el detalle)'); }
+});
+
+function encabezadoPDF(doc, proyecto, titulo, marginX){
+  let y = 50;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(22,40,63);
+  doc.text(titulo, marginX, y);
+  y += 28;
+
+  doc.setFontSize(10); doc.setTextColor(40,40,40);
+  [
+    ['Cliente:', proyecto.cliente || '-'],
+    ['Obra / dirección:', proyecto.obra || '-'],
+    ['Fecha:', fechaLegible(proyecto.fecha) || '-'],
+    ['Tipo de instalación:', proyecto.tipoInstalacion || '-'],
+  ].forEach(([label, val]) => {
+    doc.setFont('helvetica','bold'); doc.text(label, marginX, y);
+    doc.setFont('helvetica','normal'); doc.text(String(val), marginX + 130, y);
+    y += 16;
+  });
+  return y + 10;
+}
+
+function descargarPDF(doc, proyecto, prefijoArchivo, linkId){
+  const nombreArchivo = prefijoArchivo + '_' + (proyecto.nombre || 'proyecto').replace(/\s+/g,'_') + '.pdf';
+  const blobUrl = doc.output('bloburl');
+  const link = document.getElementById(linkId);
+  link.href = blobUrl;
+  link.download = nombreArchivo;
+  link.style.display = 'inline-flex';
+  link.textContent = 'Descargar ' + nombreArchivo;
+
+  try{ doc.save(nombreArchivo); }
+  catch(e){ console.error('Descarga automática falló, usá el link de abajo:', e); }
+  showToast('PDF generado. Si no se descargó solo, usá el botón "Descargar"');
+}
+
+function generarPDFPresupuesto(proyecto){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const marginX = 40;
+  let y = encabezadoPDF(doc, proyecto, 'Presupuesto - Instalación Eléctrica', marginX);
+
+  const cats = [];
+  proyecto.items.forEach(it => { if(it.cantidad > 0 && !cats.includes(it.categoria)) cats.push(it.categoria); });
+  const catsInstalacion = cats.filter(c => !proyecto.items.find(it => it.categoria === c).esExtra);
+  const catsExtras = cats.filter(c => proyecto.items.find(it => it.categoria === c).esExtra);
+
+  function tablaCategoria(categoria, colorHeader){
+    const filas = proyecto.items.filter(it => it.categoria === categoria && it.cantidad > 0);
+    if(filas.length === 0) return;
+    if(y > 720){ doc.addPage(); y = 50; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(22,40,63);
+    doc.text(categoria, marginX, y);
+    y += 6;
+
+    const body = filas.map(it => [
+      it.item, it.unidad, String(it.cantidad),
+      '$ ' + it.precio.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}),
+      '$ ' + (it.precio*it.cantidad).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}),
+    ]);
+    doc.autoTable({
+      startY: y + 6, margin: { left: marginX, right: marginX },
+      head: [['Ítem','Unidad','Cant.','P. Unitario','Subtotal']], body,
+      styles: { font:'helvetica', fontSize:9, cellPadding:5 },
+      headStyles: { fillColor: colorHeader, textColor: 255, fontStyle:'bold' },
+      alternateRowStyles: { fillColor: [242,242,242] },
+      columnStyles: { 2:{halign:'center'}, 3:{halign:'right'}, 4:{halign:'right'} },
+    });
+    y = doc.lastAutoTable.finalY + 18;
+  }
+
+  catsInstalacion.forEach(c => tablaCategoria(c, [22,40,63]));
+
+  let subtotalInstalacion = 0, subtotalExtras = 0;
+  proyecto.items.forEach(it => { if(it.cantidad > 0){
+    const monto = it.precio * it.cantidad;
+    if(it.esExtra) subtotalExtras += monto; else subtotalInstalacion += monto;
+  }});
+
+  if(y > 740){ doc.addPage(); y = 50; }
+  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(22,40,63);
+  doc.text('Subtotal instalación: $ ' + subtotalInstalacion.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}), marginX, y);
+  y += 26;
+
+  if(catsExtras.length > 0){
+    doc.setFontSize(11);
+    doc.text('Trabajos adicionales (no incluidos en la instalación)', marginX, y);
+    y += 4;
+    catsExtras.forEach(c => tablaCategoria(c, [181,101,29]));
+
+    doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(110,110,110);
+    doc.text('Estos trabajos se cotizan aparte de la instalación.', marginX, y);
+    y += 20;
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(22,40,63);
+    doc.text('Subtotal trabajos adicionales: $ ' + subtotalExtras.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}), marginX, y);
+    y += 26;
+  }
+
+  if(y > 740){ doc.addPage(); y = 50; }
+  doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(22,40,63);
+  doc.text('TOTAL GENERAL: $ ' + (subtotalInstalacion + subtotalExtras).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}), marginX, y);
+
+  descargarPDF(doc, proyecto, 'presupuesto', 'btn-pdf-presupuesto-link');
+}
+
+function generarPDFMateriales(proyecto){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const marginX = 40;
+  let y = encabezadoPDF(doc, proyecto, 'Materiales de tablero - Circuitos', marginX);
+
+  const circuitos = ensureCircuitos(proyecto);
+  const resumen = calcularResumenCircuitos(circuitos);
+
+  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(60,60,60);
+  doc.text('Cantidad de tableros: ' + (circuitos.cantidadTableros || 0), marginX, y);
+  y += 20;
+
+  if(resumen.termicas.length === 0 && resumen.diferenciales.length === 0){
+    doc.setFont('helvetica','italic'); doc.setFontSize(10); doc.setTextColor(110,110,110);
+    doc.text('Todavía no cargaste circuitos en este proyecto.', marginX, y);
+  }else{
+    if(resumen.termicas.length > 0){
+      doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(22,40,63);
+      doc.text('Térmicas necesarias', marginX, y);
+      y += 6;
+      doc.autoTable({
+        startY: y + 6, margin: { left: marginX, right: marginX },
+        head: [['Térmica','Cantidad']],
+        body: resumen.termicas.map(t => [t.amperaje, String(t.cantidad)]),
+        styles: { fontSize:10, cellPadding:6 },
+        headStyles: { fillColor:[22,40,63], textColor:255 },
+        columnStyles: { 1:{halign:'center'} },
+      });
+      y = doc.lastAutoTable.finalY + 24;
+    }
+    if(resumen.diferenciales.length > 0){
+      if(y > 700){ doc.addPage(); y = 50; }
+      doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(22,40,63);
+      doc.text('Diferenciales necesarios', marginX, y);
+      y += 6;
+      doc.autoTable({
+        startY: y + 6, margin: { left: marginX, right: marginX },
+        head: [['Diferencial','Cantidad']],
+        body: resumen.diferenciales.map(d => [d.etiqueta, String(d.cantidad)]),
+        styles: { fontSize:10, cellPadding:6 },
+        headStyles: { fillColor:[22,40,63], textColor:255 },
+        columnStyles: { 1:{halign:'center'} },
+      });
+      y = doc.lastAutoTable.finalY + 20;
+    }
+  }
+
+  if(y > 740){ doc.addPage(); y = 50; }
+  doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(130,130,130);
+  doc.text('Este documento es solo para saber cuánto material comprar. No incluye precios.', marginX, y);
+
+  descargarPDF(doc, proyecto, 'materiales', 'btn-pdf-materiales-link');
+}
+
+// ---------------------------------------------------------------------
+// Plano de obra (imagen o PDF, se ve dentro de la app)
+// ---------------------------------------------------------------------
+const LIMITE_PLANO_BYTES = 3 * 1024 * 1024; // 3MB: deja margen bajo el límite de 5MB por clave
+
+function formatBytes(bytes){
+  if(!bytes) return '';
+  const mb = bytes / (1024*1024);
+  return mb >= 1 ? mb.toFixed(2) + ' MB' : Math.round(bytes/1024) + ' KB';
+}
+function leerArchivoComoDataURL(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+async function manejarArchivoPlano(file){
+  if(!file) return;
+  const esImagen = file.type.startsWith('image/');
+  const esPDF = file.type === 'application/pdf';
+  if(!esImagen && !esPDF){ showToast('Subí una imagen o un PDF'); return; }
+  if(file.size > LIMITE_PLANO_BYTES){
+    showToast('El archivo pesa demasiado (máximo 3 MB). Probá comprimirlo o bajarle la resolución.');
+    return;
+  }
+  try{
+    const dataUrl = await leerArchivoComoDataURL(file);
+    proyectoActual.planoObra = { nombre: file.name, tipo: esImagen ? 'imagen' : 'pdf', dataUrl, tamanioBytes: file.size };
+    renderPlanoObra();
+    showToast('Plano cargado. Tocá "Guardar proyecto" para que quede guardado.');
+  }catch(e){
+    console.error(e);
+    showToast('No se pudo leer el archivo');
+  }
+}
+
+function renderPlanoObra(){
+  const plano = proyectoActual.planoObra;
+  const vacio = document.getElementById('plano-vacio');
+  const contenido = document.getElementById('plano-contenido');
+  if(!plano){
+    vacio.style.display = 'block';
+    contenido.style.display = 'none';
+    return;
+  }
+  vacio.style.display = 'none';
+  contenido.style.display = 'block';
+  document.getElementById('plano-nombre').textContent = plano.nombre + ' · ' + formatBytes(plano.tamanioBytes);
+
+  const descargar = document.getElementById('btn-descargar-plano');
+  descargar.href = plano.dataUrl;
+  descargar.download = plano.nombre;
+
+  const preview = document.getElementById('plano-preview');
+  preview.innerHTML = '';
+  if(plano.tipo === 'imagen'){
+    const img = document.createElement('img');
+    img.src = plano.dataUrl;
+    img.style.width = '100%';
+    img.style.display = 'block';
+    preview.appendChild(img);
+  }else{
+    const iframe = document.createElement('iframe');
+    iframe.src = plano.dataUrl;
+    iframe.style.width = '100%';
+    iframe.style.height = '520px';
+    iframe.style.border = 'none';
+    preview.appendChild(iframe);
+  }
+}
+
+document.getElementById('btn-subir-plano').addEventListener('click', () => document.getElementById('plano-input').click());
+document.getElementById('btn-reemplazar-plano').addEventListener('click', () => document.getElementById('plano-input').click());
+document.getElementById('plano-input').addEventListener('change', (e) => {
+  manejarArchivoPlano(e.target.files[0]);
+  e.target.value = '';
+});
+document.getElementById('btn-quitar-plano').addEventListener('click', () => {
+  if(!confirm('¿Quitar el plano de este proyecto?')) return;
+  proyectoActual.planoObra = null;
+  renderPlanoObra();
+});
+
+// ---------------------------------------------------------------------
+// Exportar / Importar todo (para compartir entre dos personas, por
+// ejemplo dejando el archivo en una carpeta de Google Drive compartida)
+// ---------------------------------------------------------------------
+function leerArchivoComoTexto(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(file);
+  });
+}
+
+async function exportarTodo(){
+  try{
+    const todosLosProyectos = [];
+    for(const entry of proyectosIndex){
+      const p = await loadProyecto(entry.id);
+      if(p) todosLosProyectos.push(p);
+    }
+    const payload = {
+      tipo: 'presupuestos-electricos-backup',
+      version: 1,
+      exportadoEl: new Date().toISOString(),
+      precios,
+      proyectos: todosLosProyectos,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'presupuestos-electricos_' + todayISO() + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    showToast('Datos exportados. Subí este archivo a tu carpeta compartida.');
+  }catch(e){
+    console.error(e);
+    showToast('No se pudo exportar los datos');
+  }
+}
+
+// Fusiona una lista de proyectos "remotos" (de un archivo importado o de GitHub)
+// con los proyectos locales: agrega los nuevos, y actualiza los existentes
+// solo si la versión remota es más nueva (por updatedAt/createdAt).
+async function fusionarProyectos(proyectosRemotos){
+  let nuevos = 0, actualizados = 0, sinCambios = 0;
+  for(const remoto of proyectosRemotos){
+    const yaExiste = proyectosIndex.some(p => p.id === remoto.id);
+    if(!yaExiste){
+      await storageSet('proyecto:' + remoto.id, JSON.stringify(remoto), false);
+      const {instalacion, extras} = calcularTotales(remoto);
+      proyectosIndex.push({
+        id: remoto.id, nombre: remoto.nombre || '(sin nombre)',
+        cliente: remoto.cliente || '', fecha: remoto.fecha || '', total: instalacion + extras,
+      });
+      nuevos++;
+    }else{
+      const actual = await loadProyecto(remoto.id);
+      const tsActual = (actual && (actual.updatedAt || actual.createdAt)) || 0;
+      const tsRemoto = remoto.updatedAt || remoto.createdAt || 0;
+      if(tsRemoto > tsActual){
+        await storageSet('proyecto:' + remoto.id, JSON.stringify(remoto), false);
+        const {instalacion, extras} = calcularTotales(remoto);
+        const idx = proyectosIndex.findIndex(p => p.id === remoto.id);
+        proyectosIndex[idx] = {
+          id: remoto.id, nombre: remoto.nombre || '(sin nombre)',
+          cliente: remoto.cliente || '', fecha: remoto.fecha || '', total: instalacion + extras,
+        };
+        actualizados++;
+      }else{
+        sinCambios++;
+      }
+    }
+  }
+  if(nuevos > 0 || actualizados > 0) await saveProyectosIndex();
+  return { nuevos, actualizados, sinCambios };
+}
+
+async function importarTodo(file){
+  if(!file) return;
+  let payload;
+  try{
+    payload = JSON.parse(await leerArchivoComoTexto(file));
+  }catch(e){
+    showToast('El archivo no es un backup válido (no es un JSON legible)');
+    return;
+  }
+  if(!payload || payload.tipo !== 'presupuestos-electricos-backup' || !Array.isArray(payload.proyectos)){
+    showToast('El archivo no tiene el formato esperado');
+    return;
+  }
+
+  const ok = confirm(
+    'Esto va a:\n' +
+    '- Reemplazar tu lista de precios por la del archivo\n' +
+    '- Agregar los proyectos del archivo que no tengas, y actualizar los que ya tengas SOLO si la versión ' +
+    'del archivo es más nueva que la tuya (así no se pisan cambios más recientes por accidente)\n\n' +
+    '¿Continuar?'
+  );
+  if(!ok) return;
+
+  if(Array.isArray(payload.precios)){
+    precios = payload.precios;
+    await savePrecios(precios);
+  }
+
+  const { nuevos, actualizados, sinCambios } = await fusionarProyectos(payload.proyectos);
+  renderPreciosTable();
+  renderCategoriasDatalist();
+  renderProyectosGrid();
+  showToast(`Importado: ${nuevos} nuevo(s), ${actualizados} actualizado(s), ${sinCambios} sin cambios`);
+}
+
+document.getElementById('btn-exportar').addEventListener('click', exportarTodo);
+document.getElementById('btn-importar').addEventListener('click', () => document.getElementById('importar-input').click());
+document.getElementById('importar-input').addEventListener('change', (e) => {
+  importarTodo(e.target.files[0]);
+  e.target.value = '';
+});
+
+// ---------------------------------------------------------------------
+// Sincronización con GitHub (para dos personas, sin servidor propio)
+// ---------------------------------------------------------------------
+let githubConfig = null; // {owner, repo, token}
+const RUTA_DATOS_GITHUB = 'presupuestos-datos.json';
+let sincronizando = false;
+
+async function cargarConfigGitHub(){
+  try{
+    const res = await storageGet('github-config', false);
+    if(res && res.value) return JSON.parse(res.value);
+  }catch(e){ /* no configurado todavía */ }
+  return null;
+}
+async function guardarConfigGitHub(cfg){
+  githubConfig = cfg;
+  await storageSet('github-config', JSON.stringify(cfg), false);
+}
+async function quitarConfigGitHub(){
+  githubConfig = null;
+  try{ await storageDelete('github-config', false); }catch(e){}
+}
+
+function utf8ToBase64(str){ return btoa(unescape(encodeURIComponent(str))); }
+function base64ToUtf8(b64){ return decodeURIComponent(escape(atob(b64.replace(/\n/g,'')))); }
+
+function setEstadoSync(texto, emoji){
+  document.getElementById('sync-estado').textContent = emoji + ' ' + texto;
+}
+
+async function githubApi(path, options={}){
+  const url = `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}${path}`;
+  return fetch(url, {
+    ...options,
+    headers: {
+      'Authorization': `Bearer ${githubConfig.token}`,
+      'Accept': 'application/vnd.github+json',
+      ...(options.headers || {}),
+    },
+  });
+}
+
+async function githubLeerDatos(){
+  const res = await githubApi(`/contents/${RUTA_DATOS_GITHUB}`);
+  if(res.status === 404) return { datos: null, sha: null };
+  if(res.status === 401 || res.status === 403) throw new Error('Token inválido o sin permisos sobre el repositorio');
+  if(!res.ok) throw new Error('Error leyendo GitHub (' + res.status + ')');
+  const json = await res.json();
+  const datos = JSON.parse(base64ToUtf8(json.content));
+  return { datos, sha: json.sha };
+}
+
+async function githubEscribirDatos(datos, sha){
+  const body = {
+    message: 'Actualizar datos - ' + new Date().toISOString(),
+    content: utf8ToBase64(JSON.stringify(datos, null, 2)),
+  };
+  if(sha) body.sha = sha;
+  const res = await githubApi(`/contents/${RUTA_DATOS_GITHUB}`, { method: 'PUT', body: JSON.stringify(body) });
+  if(!res.ok){
+    const err = await res.json().catch(() => ({}));
+    throw new Error('Error escribiendo en GitHub (' + res.status + '): ' + (err.message || ''));
+  }
+  const json = await res.json();
+  return json.content.sha;
+}
+
+async function construirPayloadLocal(){
+  const todosLosProyectos = [];
+  for(const entry of proyectosIndex){
+    const p = await loadProyecto(entry.id);
+    if(p) todosLosProyectos.push(p);
+  }
+  return {
+    tipo: 'presupuestos-electricos-backup', version: 1,
+    exportadoEl: new Date().toISOString(),
+    precios, preciosUpdatedAt: await getPreciosUpdatedAt(),
+    proyectos: todosLosProyectos,
+  };
+}
+
+// Sincroniza: baja lo remoto, lo fusiona con lo local, y si push=true sube el resultado.
+async function sincronizarConGitHub({ push = false, silencioso = false } = {}){
+  if(!githubConfig){ return; }
+  if(sincronizando) return;
+  sincronizando = true;
+  if(!silencioso) setEstadoSync('Sincronizando…', '🟡');
+  try{
+    const { datos: remoto, sha } = await githubLeerDatos();
+
+    if(remoto){
+      if(Array.isArray(remoto.precios)){
+        const tsRemoto = remoto.preciosUpdatedAt || 0;
+        const tsLocal = await getPreciosUpdatedAt();
+        if(tsRemoto > tsLocal){
+          precios = remoto.precios;
+          await storageSet('precios', JSON.stringify(precios), false);
+          await storageSet('precios-updated-at', String(tsRemoto), false);
+        }
+      }
+      if(Array.isArray(remoto.proyectos)){
+        await fusionarProyectos(remoto.proyectos);
+      }
+      renderPreciosTable();
+      renderCategoriasDatalist();
+      renderProyectosGrid();
+      if(proyectoActual && document.getElementById('view-editor').classList.contains('active')){
+        const actualizado = await loadProyecto(proyectoActual.id);
+        if(actualizado){ proyectoActual = actualizado; ensureCircuitos(proyectoActual); renderEditorItems(); renderCircuitosPanel(); renderPlanoObra(); }
+      }
+    }
+
+    if(push){
+      const payloadLocal = await construirPayloadLocal();
+      await githubEscribirDatos(payloadLocal, sha);
+    }
+
+    setEstadoSync('Sincronizado', '🟢');
+  }catch(e){
+    console.error(e);
+    setEstadoSync('Sin conexión con GitHub', '🔴');
+    if(!silencioso) showToast('No se pudo sincronizar: ' + e.message);
+  }finally{
+    sincronizando = false;
+  }
+}
+
+function abrirSyncOverlay(){
+  document.getElementById('sync-owner').value = githubConfig ? githubConfig.owner : '';
+  document.getElementById('sync-repo').value = githubConfig ? githubConfig.repo : '';
+  document.getElementById('sync-token').value = githubConfig ? githubConfig.token : '';
+  document.getElementById('sync-overlay').style.display = 'flex';
+}
+document.getElementById('btn-sync-config').addEventListener('click', abrirSyncOverlay);
+document.getElementById('btn-sync-cerrar').addEventListener('click', () => { document.getElementById('sync-overlay').style.display = 'none'; });
+document.getElementById('btn-sync-ayuda').addEventListener('click', () => {
+  const el = document.getElementById('sync-ayuda');
+  el.style.display = (el.style.display === 'none') ? 'block' : 'none';
+});
+
+document.getElementById('btn-sync-guardar').addEventListener('click', async () => {
+  const owner = document.getElementById('sync-owner').value.trim();
+  const repo = document.getElementById('sync-repo').value.trim();
+  const token = document.getElementById('sync-token').value.trim();
+  if(!owner || !repo || !token){ showToast('Completá usuario, repositorio y token'); return; }
+  await guardarConfigGitHub({ owner, repo, token });
+  document.getElementById('sync-overlay').style.display = 'none';
+  await sincronizarConGitHub({ push: true });
+});
+document.getElementById('btn-sync-ahora').addEventListener('click', async () => {
+  if(!githubConfig){ showToast('Primero guardá la configuración'); return; }
+  document.getElementById('sync-overlay').style.display = 'none';
+  await sincronizarConGitHub({ push: true });
+});
+document.getElementById('btn-sync-quitar').addEventListener('click', async () => {
+  if(!confirm('¿Desconectar la sincronización con GitHub en este navegador? Tus datos locales no se borran.')) return;
+  await quitarConfigGitHub();
+  setEstadoSync('Sincronización no configurada', '⚪');
+  document.getElementById('sync-overlay').style.display = 'none';
+});
+
+// ---------------------------------------------------------------------
+// Init
+// ---------------------------------------------------------------------
+(async function init(){
+  precios = await loadPrecios();
+  proyectosIndex = await loadProyectosIndex();
+  renderPreciosTable();
+  renderCategoriasDatalist();
+  renderProyectosGrid();
+  showView('proyectos');
+
+  githubConfig = await cargarConfigGitHub();
+  if(githubConfig){
+    setEstadoSync('Sincronizando…', '🟡');
+    await sincronizarConGitHub({ push: false, silencioso: true });
+    setInterval(() => sincronizarConGitHub({ push: false, silencioso: true }), 45000);
+  }
+})();
+</script>
+</body>
+</html>
