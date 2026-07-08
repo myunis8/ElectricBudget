@@ -23,7 +23,11 @@
   --slate: #5b6b7a;
   --slate-soft: #eef1f3;
   --green: #2f7d5c;
+  --green-soft: #dcefe4;
   --danger: #b3432f;
+  --danger-soft: #f8ded7;
+  --blue: #2b6ca3;
+  --blue-soft: #dce9f3;
   --radius: 10px;
   font-family: 'IBM Plex Sans', sans-serif;
 }
@@ -111,6 +115,16 @@ input.price-input, input.qty-input{ width:110px; padding:6px 8px; border:1px sol
 input.qty-input{ width:70px; text-align:center; }
 input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--line); border-radius:6px; font-size:0.88rem; width:100%; font-family:'IBM Plex Sans', sans-serif; }
 .badge-extra{ font-size:0.65rem; font-family:'Space Grotesk',sans-serif; font-weight:600; color:var(--copper); border:1px solid var(--copper); border-radius:20px; padding:1px 8px; }
+
+.badge-pill{ font-size:0.68rem; font-family:'Space Grotesk',sans-serif; font-weight:600; border-radius:20px; padding:2px 10px; display:inline-block; border:1px solid transparent; }
+.badge-estado.preliminar{ color:var(--slate); border-color:var(--slate); background:var(--slate-soft); }
+.badge-estado.aprobado{ color:var(--amber-deep); border-color:var(--amber-deep); background:#fbe9d0; }
+.badge-estado.en_curso{ color:var(--blue); border-color:var(--blue); background:var(--blue-soft); }
+.badge-estado.realizado{ color:var(--green); border-color:var(--green); background:var(--green-soft); }
+.badge-pago.pendiente{ color:var(--danger); border-color:var(--danger); background:var(--danger-soft); }
+.badge-pago.parcial{ color:var(--amber-deep); border-color:var(--amber-deep); background:#fbe9d0; }
+.badge-pago.pagado{ color:var(--green); border-color:var(--green); background:var(--green-soft); }
+.card-badges{ display:flex; gap:6px; flex-wrap:wrap; margin:6px 0; }
 .icon-btn{ background:none; border:none; color:var(--muted); padding:4px; border-radius:5px; font-size:0.9rem; }
 .icon-btn:hover{ background:#eee; color:var(--danger); }
 
@@ -190,7 +204,7 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
   <div class="head-row">
     <div>
       <h1>Presupuestos Eléctricos</h1>
-      <p>Lista de precios y presupuestos por obra</p>
+      <p>Lista de precios y presupuestos por obra <span class="mono" style="opacity:0.6;">· v<span id="app-version"></span></span></p>
     </div>
     <div style="display:flex; align-items:center; gap:8px; padding-bottom:16px; flex-wrap:wrap;">
       <span id="sync-estado" class="hint" style="color:#9fb3c4;">⚪ Sincronización no configurada</span>
@@ -260,10 +274,19 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
     </div>
 
     <div class="panel" style="padding:16px 20px;">
-      <div class="form-grid" style="grid-template-columns: 2fr 1fr 1fr auto; align-items:end;">
+      <div class="form-grid" style="grid-template-columns: 2fr 1fr 1fr 1fr auto; align-items:end;">
         <div class="field"><label>Buscar por nombre o dirección</label><input class="text-input" id="filtro-texto" placeholder="Ej: Rodríguez, o Av. Libertador"></div>
         <div class="field"><label>Creado desde</label><input class="text-input" id="filtro-desde" type="date"></div>
         <div class="field"><label>Creado hasta</label><input class="text-input" id="filtro-hasta" type="date"></div>
+        <div class="field"><label>Estado</label>
+          <select class="text-input" id="filtro-estado">
+            <option value="">Todos</option>
+            <option value="preliminar">Presupuesto preliminar</option>
+            <option value="aprobado">Presupuesto aprobado</option>
+            <option value="en_curso">On going (en curso)</option>
+            <option value="realizado">Realizado</option>
+          </select>
+        </div>
         <div style="display:flex; gap:8px;">
           <button class="btn btn-primary btn-sm" id="btn-filtro-buscar">Buscar</button>
           <button class="btn btn-ghost btn-sm" id="btn-filtro-limpiar">Limpiar</button>
@@ -325,6 +348,31 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
         <div class="field"><label>Tipo de instalación</label>
           <select class="text-input" id="f-tipo"><option>Monofásica</option><option>Trifásica</option></select>
         </div>
+        <div class="field"><label>Estado del proyecto</label>
+          <select class="text-input" id="f-estado">
+            <option value="preliminar">Presupuesto preliminar</option>
+            <option value="aprobado">Presupuesto aprobado</option>
+            <option value="en_curso">On going (en curso)</option>
+            <option value="realizado">Realizado</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-grid" style="margin-top:6px;">
+        <div class="field"><label>Estado de pago</label>
+          <select class="text-input" id="f-pago-estado">
+            <option value="pendiente">Pendiente</option>
+            <option value="parcial">Pago parcial</option>
+            <option value="pagado">Pagado</option>
+          </select>
+        </div>
+        <div class="field"><label>Porcentaje pagado</label>
+          <input class="text-input mono" id="f-pago-porcentaje" type="number" min="0" max="100" step="1" value="0">
+        </div>
+        <div class="field" style="justify-content:flex-end;">
+          <label>Monto pagado (referencia)</label>
+          <div class="mono" id="f-pago-monto" style="padding:9px 0; color:var(--muted);">$ 0</div>
+        </div>
       </div>
     </div>
 
@@ -339,6 +387,28 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
         <div class="line"><span>Subtotal instalación</span><span class="mono" id="tot-instalacion">$ 0</span></div>
         <div class="line"><span>Subtotal trabajos adicionales</span><span class="mono" id="tot-extras">$ 0</span></div>
         <div class="line total"><span>Total general</span><span class="mono" id="tot-general">$ 0</span></div>
+      </div>
+
+      <div class="info-banner" style="margin-top:14px;">
+        <label style="display:flex; align-items:center; gap:8px; font-weight:600; cursor:pointer;">
+          <input type="checkbox" id="f-ajuste-activo">
+          Ajustar precio final (ej. por inflación o acuerdo con el cliente)
+        </label>
+        <div id="f-ajuste-campos" style="display:none; margin-top:10px;">
+          <div class="form-grid">
+            <div class="field"><label>Total final ajustado</label>
+              <input class="text-input mono" id="f-ajuste-monto" type="number" min="0" step="1" value="0">
+            </div>
+            <div class="field"><label>Motivo / nota (opcional)</label>
+              <input class="text-input" id="f-ajuste-nota" placeholder="Ej: ajuste por inflación julio 2026">
+            </div>
+          </div>
+          <div class="hint">Esto no modifica el PDF del presupuesto (que queda como referencia histórica de los valores al
+            momento de emitirlo) — es solo para llevar registro interno de cuánto se cobra realmente.</div>
+        </div>
+        <div class="line total" style="margin-top:10px; border-top:1px dashed var(--line); padding-top:10px;">
+          <span>Total final (a cobrar)</span><span class="mono" id="tot-final">$ 0</span>
+        </div>
       </div>
 
       <div class="editor-actions">
@@ -468,6 +538,8 @@ const SEED_PRECIOS = [
   ["Puesta a tierra","Jabalina + cable + conexión (PAT)","u",false],
   ["Trabajos adicionales","Conexión al medidor (trabajo en tensión)","u",true],
 ];
+
+const APP_VERSION = '1.0';
 
 let precios = [];              // [{id, categoria, item, unidad, precio, esExtra}]
 let proyectosIndex = [];       // [{id, nombre, cliente, fecha, total}]
@@ -640,6 +712,8 @@ async function saveProyectoActual(){
     await storageSet('proyecto:' + proyectoActual.id, JSON.stringify(proyectoActual), false);
   }catch(e){ showToast('No se pudo guardar el proyecto: ' + e.message); console.error(e); return; }
 
+  ensureEstadoPago(proyectoActual);
+  const {total: totalFinal} = totalFinalProyecto(proyectoActual);
   const idx = proyectosIndex.findIndex(p => p.id === proyectoActual.id);
   const entry = {
     id: proyectoActual.id,
@@ -649,6 +723,11 @@ async function saveProyectoActual(){
     fecha: proyectoActual.fecha || '',
     creadoEl: proyectoActual.createdAt || Date.now(),
     total: instalacion + extras,
+    estado: proyectoActual.estado,
+    pagoEstado: proyectoActual.pago.estado,
+    pagoPorcentaje: proyectoActual.pago.porcentaje,
+    totalFinal: totalFinal,
+    ajustado: !!proyectoActual.ajusteFinal.activo,
   };
   if(idx >= 0) proyectosIndex[idx] = entry; else proyectosIndex.push(entry);
   await saveProyectosIndex();
@@ -761,13 +840,15 @@ document.getElementById('btn-add-item').addEventListener('click', async () => {
 function hayFiltrosActivos(){
   return !!(document.getElementById('filtro-texto').value.trim() ||
             document.getElementById('filtro-desde').value ||
-            document.getElementById('filtro-hasta').value);
+            document.getElementById('filtro-hasta').value ||
+            document.getElementById('filtro-estado').value);
 }
 
 function obtenerProyectosFiltrados(){
   const texto = document.getElementById('filtro-texto').value.trim().toLowerCase();
   const desde = document.getElementById('filtro-desde').value;
   const hasta = document.getElementById('filtro-hasta').value;
+  const estado = document.getElementById('filtro-estado').value;
 
   return proyectosIndex.filter(p => {
     if(texto){
@@ -782,6 +863,7 @@ function obtenerProyectosFiltrados(){
       if(desde && fechaCreacion < desde) return false;
       if(hasta && fechaCreacion > hasta) return false;
     }
+    if(estado && (p.estado || 'preliminar') !== estado) return false;
     return true;
   });
 }
@@ -809,13 +891,21 @@ function renderProyectosGrid(){
   empty.style.display = 'none';
 
   lista.slice().sort((a,b) => (b.fecha||'').localeCompare(a.fecha||'')).forEach(p => {
+    const estado = p.estado || 'preliminar';
+    const pagoEstado = p.pagoEstado || 'pendiente';
+    const pagoPorcentaje = (typeof p.pagoPorcentaje === 'number') ? p.pagoPorcentaje : 0;
+    const totalMostrado = (typeof p.totalFinal === 'number') ? p.totalFinal : p.total;
     const card = document.createElement('div');
     card.className = 'proyecto-card';
     card.innerHTML = `
       <h3>${p.nombre}</h3>
       <div class="meta">${p.cliente || 'Sin cliente'}${p.fecha ? ' · ' + fechaLegible(p.fecha) : ''}</div>
       ${p.obra ? `<div class="meta">${p.obra}</div>` : ''}
-      <div class="total">${money(p.total)}</div>
+      <div class="card-badges">
+        <span class="badge-pill badge-estado ${estado}">${ESTADOS_PROYECTO[estado] || estado}</span>
+        <span class="badge-pill badge-pago ${pagoEstado}">${ESTADOS_PAGO[pagoEstado] || pagoEstado}${pagoEstado === 'parcial' ? ' · ' + pagoPorcentaje + '%' : ''}</span>
+      </div>
+      <div class="total">${money(totalMostrado)}${p.ajustado ? ' <span class="hint" style="font-weight:400;">(ajustado)</span>' : ''}</div>
       <div class="card-actions">
         <button class="btn btn-ghost btn-sm" data-open="${p.id}">Abrir</button>
         <button class="btn btn-danger btn-sm" data-del="${p.id}">Eliminar</button>
@@ -826,14 +916,16 @@ function renderProyectosGrid(){
   grid.querySelectorAll('button[data-del]').forEach(btn => btn.addEventListener('click', () => eliminarProyecto(btn.dataset.del)));
 }
 
-['filtro-texto','filtro-desde','filtro-hasta'].forEach(id => {
+['filtro-texto','filtro-desde','filtro-hasta','filtro-estado'].forEach(id => {
   document.getElementById(id).addEventListener('input', () => renderProyectosGrid());
 });
+document.getElementById('filtro-estado').addEventListener('change', () => renderProyectosGrid());
 document.getElementById('btn-filtro-buscar').addEventListener('click', () => renderProyectosGrid());
 document.getElementById('btn-filtro-limpiar').addEventListener('click', () => {
   document.getElementById('filtro-texto').value = '';
   document.getElementById('filtro-desde').value = '';
   document.getElementById('filtro-hasta').value = '';
+  document.getElementById('filtro-estado').value = '';
   renderProyectosGrid();
 });
 
@@ -866,10 +958,41 @@ function ensureCircuitos(proyecto){
   return proyecto.circuitos;
 }
 
+const ESTADOS_PROYECTO = {
+  preliminar: 'Presupuesto preliminar',
+  aprobado: 'Presupuesto aprobado',
+  en_curso: 'On going (en curso)',
+  realizado: 'Realizado',
+};
+const ESTADOS_PAGO = {
+  pendiente: 'Pendiente',
+  parcial: 'Pago parcial',
+  pagado: 'Pagado',
+};
+function defaultPago(){ return { estado: 'pendiente', porcentaje: 0 }; }
+function defaultAjusteFinal(){ return { activo: false, monto: 0, nota: '' }; }
+function ensureEstadoPago(proyecto){
+  if(!proyecto.estado || !ESTADOS_PROYECTO[proyecto.estado]) proyecto.estado = 'preliminar';
+  if(!proyecto.pago) proyecto.pago = defaultPago();
+  if(!ESTADOS_PAGO[proyecto.pago.estado]) proyecto.pago.estado = 'pendiente';
+  if(typeof proyecto.pago.porcentaje !== 'number') proyecto.pago.porcentaje = proyecto.pago.estado === 'pagado' ? 100 : 0;
+  if(!proyecto.ajusteFinal) proyecto.ajusteFinal = defaultAjusteFinal();
+  return proyecto;
+}
+function totalFinalProyecto(proyecto){
+  const {instalacion, extras} = calcularTotales(proyecto);
+  const totalPresupuestado = instalacion + extras;
+  if(proyecto.ajusteFinal && proyecto.ajusteFinal.activo){
+    return { total: proyecto.ajusteFinal.monto || 0, totalPresupuestado };
+  }
+  return { total: totalPresupuestado, totalPresupuestado };
+}
+
 function nuevoProyecto(){
   proyectoActual = {
     id: uid(), nombre: '', cliente: '', obra: '', fecha: todayISO(), tipoInstalacion: 'Monofásica',
     items: itemsIniciales(), circuitos: defaultCircuitos(), planoObra: null, createdAt: Date.now(),
+    estado: 'preliminar', pago: defaultPago(), ajusteFinal: defaultAjusteFinal(),
   };
   abrirEditor('Nuevo proyecto');
 }
@@ -878,6 +1001,7 @@ async function abrirProyecto(id){
   if(!p){ showToast('No se pudo abrir el proyecto'); return; }
   proyectoActual = p;
   ensureCircuitos(proyectoActual);
+  ensureEstadoPago(proyectoActual);
   if(proyectoActual.planoObra === undefined) proyectoActual.planoObra = null;
   abrirEditor(p.nombre || 'Proyecto');
 }
@@ -889,13 +1013,22 @@ function abrirEditor(titulo){
   document.getElementById('f-obra').value = proyectoActual.obra || '';
   document.getElementById('f-fecha').value = proyectoActual.fecha || todayISO();
   document.getElementById('f-tipo').value = proyectoActual.tipoInstalacion || 'Monofásica';
+  document.getElementById('f-estado').value = proyectoActual.estado || 'preliminar';
+  document.getElementById('f-pago-estado').value = proyectoActual.pago.estado;
+  document.getElementById('f-pago-porcentaje').value = proyectoActual.pago.porcentaje;
+  document.getElementById('f-pago-porcentaje').disabled = (proyectoActual.pago.estado !== 'parcial');
+  document.getElementById('f-ajuste-activo').checked = !!proyectoActual.ajusteFinal.activo;
+  document.getElementById('f-ajuste-campos').style.display = proyectoActual.ajusteFinal.activo ? 'block' : 'none';
+  document.getElementById('f-ajuste-monto').value = proyectoActual.ajusteFinal.monto || 0;
+  document.getElementById('f-ajuste-nota').value = proyectoActual.ajusteFinal.nota || '';
   renderEditorItems();
   renderCircuitosPanel();
   renderPlanoObra();
+  actualizarPagoYAjuste();
   showView('editor');
 }
 
-['f-nombre','f-cliente','f-obra','f-fecha','f-tipo'].forEach(id => {
+['f-nombre','f-cliente','f-obra','f-fecha','f-tipo','f-estado'].forEach(id => {
   document.getElementById(id).addEventListener('input', () => {
     if(!proyectoActual) return;
     proyectoActual.nombre = document.getElementById('f-nombre').value;
@@ -903,8 +1036,58 @@ function abrirEditor(titulo){
     proyectoActual.obra = document.getElementById('f-obra').value;
     proyectoActual.fecha = document.getElementById('f-fecha').value;
     proyectoActual.tipoInstalacion = document.getElementById('f-tipo').value;
+    proyectoActual.estado = document.getElementById('f-estado').value;
   });
 });
+
+document.getElementById('f-pago-estado').addEventListener('change', () => {
+  if(!proyectoActual) return;
+  const estado = document.getElementById('f-pago-estado').value;
+  proyectoActual.pago.estado = estado;
+  if(estado === 'pendiente') proyectoActual.pago.porcentaje = 0;
+  if(estado === 'pagado') proyectoActual.pago.porcentaje = 100;
+  if(estado === 'parcial' && (!proyectoActual.pago.porcentaje || proyectoActual.pago.porcentaje === 0 || proyectoActual.pago.porcentaje === 100)){
+    proyectoActual.pago.porcentaje = 50;
+  }
+  document.getElementById('f-pago-porcentaje').value = proyectoActual.pago.porcentaje;
+  document.getElementById('f-pago-porcentaje').disabled = (estado !== 'parcial');
+  actualizarPagoYAjuste();
+});
+document.getElementById('f-pago-porcentaje').addEventListener('input', () => {
+  if(!proyectoActual) return;
+  let v = parseFloat(document.getElementById('f-pago-porcentaje').value) || 0;
+  v = Math.max(0, Math.min(100, v));
+  proyectoActual.pago.porcentaje = v;
+  actualizarPagoYAjuste();
+});
+document.getElementById('f-ajuste-activo').addEventListener('change', () => {
+  if(!proyectoActual) return;
+  const activo = document.getElementById('f-ajuste-activo').checked;
+  proyectoActual.ajusteFinal.activo = activo;
+  document.getElementById('f-ajuste-campos').style.display = activo ? 'block' : 'none';
+  if(activo && !proyectoActual.ajusteFinal.monto){
+    const {instalacion, extras} = calcularTotales(proyectoActual);
+    proyectoActual.ajusteFinal.monto = instalacion + extras;
+    document.getElementById('f-ajuste-monto').value = proyectoActual.ajusteFinal.monto;
+  }
+  actualizarPagoYAjuste();
+});
+document.getElementById('f-ajuste-monto').addEventListener('input', () => {
+  if(!proyectoActual) return;
+  proyectoActual.ajusteFinal.monto = parseFloat(document.getElementById('f-ajuste-monto').value) || 0;
+  actualizarPagoYAjuste();
+});
+document.getElementById('f-ajuste-nota').addEventListener('input', () => {
+  if(!proyectoActual) return;
+  proyectoActual.ajusteFinal.nota = document.getElementById('f-ajuste-nota').value;
+});
+function actualizarPagoYAjuste(){
+  if(!proyectoActual) return;
+  const {total} = totalFinalProyecto(proyectoActual);
+  document.getElementById('tot-final').textContent = money(total);
+  const monto = total * (proyectoActual.pago.porcentaje || 0) / 100;
+  document.getElementById('f-pago-monto').textContent = money(monto);
+}
 
 function renderEditorItems(){
   const cont = document.getElementById('editor-items');
@@ -959,6 +1142,7 @@ function actualizarTotales(){
   document.getElementById('tot-instalacion').textContent = money(instalacion);
   document.getElementById('tot-extras').textContent = money(extras);
   document.getElementById('tot-general').textContent = money(instalacion + extras);
+  actualizarPagoYAjuste();
 }
 
 document.getElementById('btn-refrescar-precios').addEventListener('click', () => {
@@ -1266,6 +1450,16 @@ function generarPDFPresupuesto(proyecto){
   if(y > 740){ doc.addPage(); y = 50; }
   doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(22,40,63);
   doc.text('TOTAL GENERAL: $ ' + (subtotalInstalacion + subtotalExtras).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}), marginX, y);
+  y += 30;
+
+  const anchoPagina = doc.internal.pageSize.getWidth();
+  const leyenda = 'Los valores de este presupuesto corresponden al día de su emisión (' +
+    (fechaLegible(proyecto.fecha) || '-') + ') y podrían sufrir modificaciones por inflación ' +
+    'u otras variaciones de costos hasta el momento de confirmar y ejecutar el trabajo.';
+  const lineas = doc.splitTextToSize(leyenda, anchoPagina - marginX * 2);
+  if(y + lineas.length * 11 > 780){ doc.addPage(); y = 50; }
+  doc.setFont('helvetica','italic'); doc.setFontSize(8.5); doc.setTextColor(110,110,110);
+  doc.text(lineas, marginX, y);
 
   descargarPDF(doc, proyecto, 'presupuesto', 'btn-pdf-presupuesto-link');
 }
@@ -1699,6 +1893,7 @@ document.getElementById('btn-sync-quitar').addEventListener('click', async () =>
 // Init
 // ---------------------------------------------------------------------
 (async function init(){
+  document.getElementById('app-version').textContent = APP_VERSION;
   precios = await loadPrecios();
   proyectosIndex = await loadProyectosIndex();
   renderPreciosTable();
