@@ -363,7 +363,6 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
     <div class="panel">
       <div class="panel-head">
         <h2 class="display">Lista de precios</h2>
-        <button class="btn btn-ghost btn-sm" id="btn-migrar-precios">Actualizar categorías</button>
       </div>
       <div class="info-banner">
         Estos son los ítems que se cotizan directamente en el presupuesto: puntos, tomas, iluminación,
@@ -621,7 +620,7 @@ const SEED_PRECIOS = [
   ["Trabajos adicionales","Conexión al medidor (trabajo en tensión)","u",true],
 ];
 
-const APP_VERSION = '1.2';
+const APP_VERSION = '1.3';
 
 let precios = [];              // [{id, categoria, item, unidad, precio, esExtra}]
 let proyectosIndex = [];       // [{id, nombre, cliente, fecha, total}]
@@ -886,23 +885,6 @@ function construirListaMigrada(listaActual){
   return nuevaLista;
 }
 
-async function migrarPrecios(){
-  const ok = await confirmDialog(
-    'Esto va a:\n' +
-    '- Sacar Térmicas y Diferenciales de la lista de precios (ahora se calculan en la sección Circuitos de cada proyecto)\n' +
-    '- Separar "Puntos y Bocas" en "Puntos" y "Tomas", y agregar "Punto combinado"\n' +
-    '- Agregar la categoría "Iluminación" (Artefacto aislado / no aislado)\n\n' +
-    'Los precios que ya cargaste para ítems que se mantienen NO se pierden.\n\n¿Continuar?'
-  );
-  if(!ok) return;
-
-  precios = construirListaMigrada(precios);
-  await savePrecios(precios);
-  renderPreciosTable();
-  renderCategoriasDatalist();
-  showToast('Lista de precios actualizada');
-}
-
 // ---------------------------------------------------------------------
 // Storage: proyectos
 // ---------------------------------------------------------------------
@@ -975,7 +957,6 @@ document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click
   if(btn.dataset.view === 'proyectos') renderProyectosGrid();
   showView(btn.dataset.view);
 }));
-document.getElementById('btn-migrar-precios').addEventListener('click', migrarPrecios);
 
 // ---------------------------------------------------------------------
 // Vista: Precios
@@ -1417,12 +1398,28 @@ function actualizarTotales(){
 document.getElementById('btn-refrescar-precios').addEventListener('click', async () => {
   if(!proyectoActual) return;
   if(!(await confirmDialog('Esto va a reemplazar los precios unitarios cargados en este proyecto por los precios actuales de la lista. ¿Continuar?'))) return;
+  let actualizados = 0;
   proyectoActual.items.forEach(it => {
-    const actual = precios.find(p => p.id === it.precioId);
-    if(actual) it.precio = actual.precio;
+    // Buscamos primero por id, pero si no aparece (por ejemplo, porque la lista de precios
+    // se migró en algún momento y los ids cambiaron) buscamos por nombre + categoría, que
+    // es lo que se mantiene estable entre migraciones, y re-vinculamos el id para que quede
+    // corregido de una vez.
+    const actual = precios.find(p => p.id === it.precioId) ||
+                   precios.find(p => p.item === it.item && p.categoria === it.categoria);
+    if(actual){
+      it.precio = actual.precio;
+      it.precioId = actual.id;
+      actualizados++;
+    }
   });
   renderEditorItems();
-  showToast('Precios actualizados');
+  if(actualizados === proyectoActual.items.length){
+    showToast('Precios actualizados');
+  }else if(actualizados > 0){
+    showToast(`Precios actualizados (${actualizados} de ${proyectoActual.items.length} ítems; el resto ya no existe en la lista)`);
+  }else{
+    showToast('No se encontró ninguno de estos ítems en la lista de precios actual');
+  }
 });
 
 document.getElementById('btn-guardar').addEventListener('click', async () => {
