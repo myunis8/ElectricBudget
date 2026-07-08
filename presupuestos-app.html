@@ -226,6 +226,18 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
 </header>
 
 <!-- ---- Overlay: configuración de empresa (nombre + logo) ---- -->
+<!-- ---- Overlay: confirmación (reemplaza confirm() nativo, que falla en vistas embebidas) ---- -->
+<div id="confirm-overlay" style="display:none; position:fixed; inset:0; background:rgba(14,28,46,0.6); z-index:200; align-items:center; justify-content:center; padding:20px;">
+  <div class="panel" style="max-width:440px; width:100%; margin:0;">
+    <h2 class="display" style="margin-top:0;">Confirmar</h2>
+    <div id="confirm-mensaje" style="white-space:pre-line; color:var(--ink); font-size:0.92rem; line-height:1.55; margin-bottom:20px;"></div>
+    <div class="editor-actions" style="justify-content:flex-end;">
+      <button class="btn btn-ghost" id="btn-confirm-cancelar">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirm-aceptar">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <div id="empresa-overlay" style="display:none; position:fixed; inset:0; background:rgba(14,28,46,0.55); z-index:100; align-items:flex-start; justify-content:center; padding:40px 20px; overflow:auto;">
   <div class="panel" style="max-width:480px; width:100%; margin:0;">
     <div class="panel-head">
@@ -609,7 +621,7 @@ const SEED_PRECIOS = [
   ["Trabajos adicionales","Conexión al medidor (trabajo en tensión)","u",true],
 ];
 
-const APP_VERSION = '1.1';
+const APP_VERSION = '1.2';
 
 let precios = [];              // [{id, categoria, item, unidad, precio, esExtra}]
 let proyectosIndex = [];       // [{id, nombre, cliente, fecha, total}]
@@ -632,6 +644,35 @@ function showToast(msg){
   clearTimeout(showToast._timer);
   showToast._timer = setTimeout(()=> t.classList.remove('show'), 2200);
 }
+
+// Reemplaza al confirm() nativo del navegador: en vistas embebidas/sandboxeadas
+// (por ejemplo al previsualizar el HTML dentro de un iframe) confirm()/alert()
+// pueden estar bloqueados y tirar una excepción silenciosa que corta la función
+// a mitad de camino -- por eso usamos un modal propio en su lugar.
+function confirmDialog(mensaje, textoAceptar){
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('confirm-overlay');
+    const btnAceptar = document.getElementById('btn-confirm-aceptar');
+    const btnCancelar = document.getElementById('btn-confirm-cancelar');
+    document.getElementById('confirm-mensaje').textContent = mensaje;
+    btnAceptar.textContent = textoAceptar || 'Confirmar';
+    overlay.style.display = 'flex';
+
+    function limpiar(){
+      overlay.style.display = 'none';
+      btnAceptar.removeEventListener('click', onAceptar);
+      btnCancelar.removeEventListener('click', onCancelar);
+      overlay.removeEventListener('click', onFondo);
+    }
+    function onAceptar(){ limpiar(); resolve(true); }
+    function onCancelar(){ limpiar(); resolve(false); }
+    function onFondo(e){ if(e.target === overlay){ limpiar(); resolve(false); } }
+    btnAceptar.addEventListener('click', onAceptar);
+    btnCancelar.addEventListener('click', onCancelar);
+    overlay.addEventListener('click', onFondo);
+  });
+}
+
 function todayISO(){ return new Date().toISOString().slice(0,10); }
 function fechaLegible(iso){
   if(!iso) return '';
@@ -846,7 +887,7 @@ function construirListaMigrada(listaActual){
 }
 
 async function migrarPrecios(){
-  const ok = confirm(
+  const ok = await confirmDialog(
     'Esto va a:\n' +
     '- Sacar Térmicas y Diferenciales de la lista de precios (ahora se calculan en la sección Circuitos de cada proyecto)\n' +
     '- Separar "Puntos y Bocas" en "Puntos" y "Tomas", y agregar "Punto combinado"\n' +
@@ -913,7 +954,7 @@ async function saveProyectoActual(){
   if(githubConfig) sincronizarConGitHub({ push: true, silencioso: true });
 }
 async function eliminarProyecto(id){
-  if(!confirm('¿Eliminar este proyecto? No se puede deshacer.')) return;
+  if(!(await confirmDialog('¿Eliminar este proyecto? No se puede deshacer.'))) return;
   try{ await storageDelete('proyecto:' + id, false); }catch(e){ /* puede no existir */ }
   proyectosIndex = proyectosIndex.filter(p => p.id !== id);
   await saveProyectosIndex();
@@ -975,7 +1016,7 @@ function renderPreciosTable(){
   });
   body.querySelectorAll('button[data-del]').forEach(btn => {
     btn.addEventListener('click', async (e) => {
-      if(!confirm('¿Eliminar este ítem de la lista de precios?')) return;
+      if(!(await confirmDialog('¿Eliminar este ítem de la lista de precios?'))) return;
       precios = precios.filter(p => p.id !== e.target.dataset.del);
       await savePrecios(precios);
       renderPreciosTable();
@@ -1373,9 +1414,9 @@ function actualizarTotales(){
   actualizarPagoYAjuste();
 }
 
-document.getElementById('btn-refrescar-precios').addEventListener('click', () => {
+document.getElementById('btn-refrescar-precios').addEventListener('click', async () => {
   if(!proyectoActual) return;
-  if(!confirm('Esto va a reemplazar los precios unitarios cargados en este proyecto por los precios actuales de la lista. ¿Continuar?')) return;
+  if(!(await confirmDialog('Esto va a reemplazar los precios unitarios cargados en este proyecto por los precios actuales de la lista. ¿Continuar?'))) return;
   proyectoActual.items.forEach(it => {
     const actual = precios.find(p => p.id === it.precioId);
     if(actual) it.precio = actual.precio;
@@ -1883,8 +1924,8 @@ document.getElementById('plano-input').addEventListener('change', (e) => {
   manejarArchivoPlano(e.target.files[0]);
   e.target.value = '';
 });
-document.getElementById('btn-quitar-plano').addEventListener('click', () => {
-  if(!confirm('¿Quitar el plano de este proyecto?')) return;
+document.getElementById('btn-quitar-plano').addEventListener('click', async () => {
+  if(!(await confirmDialog('¿Quitar el plano de este proyecto?'))) return;
   proyectoActual.planoObra = null;
   renderPlanoObra();
 });
@@ -1984,7 +2025,7 @@ async function importarTodo(file){
     return;
   }
 
-  const ok = confirm(
+  const ok = await confirmDialog(
     'Esto va a:\n' +
     '- Reemplazar tu lista de precios por la del archivo\n' +
     '- Agregar los proyectos del archivo que no tengas, y actualizar los que ya tengas SOLO si la versión ' +
@@ -2173,7 +2214,7 @@ document.getElementById('btn-sync-ahora').addEventListener('click', async () => 
   await sincronizarConGitHub({ push: true });
 });
 document.getElementById('btn-sync-quitar').addEventListener('click', async () => {
-  if(!confirm('¿Desconectar la sincronización con GitHub en este navegador? Tus datos locales no se borran.')) return;
+  if(!(await confirmDialog('¿Desconectar la sincronización con GitHub en este navegador? Tus datos locales no se borran.'))) return;
   await quitarConfigGitHub();
   setEstadoSync('Sincronización no configurada', '⚪');
   document.getElementById('sync-overlay').style.display = 'none';
