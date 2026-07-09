@@ -125,6 +125,12 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
 .badge-pago.parcial{ color:var(--amber-deep); border-color:var(--amber-deep); background:#fbe9d0; }
 .badge-pago.pagado{ color:var(--green); border-color:var(--green); background:var(--green-soft); }
 .card-badges{ display:flex; gap:6px; flex-wrap:wrap; margin:6px 0; }
+.historial-fila{ display:flex; justify-content:space-between; gap:10px; padding:9px 4px; border-bottom:1px solid var(--line); font-size:0.85rem; }
+.historial-fila:last-child{ border-bottom:none; }
+.historial-fila .historial-texto{ color:var(--ink); }
+.historial-fila .historial-texto b{ font-weight:700; }
+.historial-fila .historial-fecha{ color:var(--muted); white-space:nowrap; font-size:0.78rem; }
+.meta-autoria{ color:var(--muted); font-size:0.78rem; margin:2px 0 0 0; }
 .icon-btn{ background:none; border:none; color:var(--muted); padding:4px; border-radius:5px; font-size:0.9rem; }
 .icon-btn:hover{ background:#eee; color:var(--danger); }
 
@@ -212,6 +218,8 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
     </div>
     <div style="display:flex; align-items:center; gap:8px; padding-bottom:16px; flex-wrap:wrap;">
       <span id="sync-estado" class="hint" style="color:#9fb3c4;">⚪ Sincronización no configurada</span>
+      <button class="btn btn-ghost btn-sm" id="btn-usuario-config" style="border-color:rgba(255,255,255,0.25); color:#cddbe6;">👤 Identificarte</button>
+      <button class="btn btn-ghost btn-sm" id="btn-historial" style="border-color:rgba(255,255,255,0.25); color:#cddbe6;">📜 Historial</button>
       <button class="btn btn-ghost btn-sm" id="btn-empresa-config" style="border-color:rgba(255,255,255,0.25); color:#cddbe6;">🏢 Empresa</button>
       <button class="btn btn-ghost btn-sm" id="btn-sync-config" style="border-color:rgba(255,255,255,0.25); color:#cddbe6;">⚙ Sincronización</button>
       <button class="btn btn-ghost btn-sm" id="btn-exportar" style="border-color:rgba(255,255,255,0.25); color:#cddbe6;">⇩ Exportar todo</button>
@@ -235,6 +243,42 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
       <button class="btn btn-ghost" id="btn-confirm-cancelar">Cancelar</button>
       <button class="btn btn-primary" id="btn-confirm-aceptar">Confirmar</button>
     </div>
+  </div>
+</div>
+
+<!-- ---- Overlay: quién sos (identidad local, no se sincroniza) ---- -->
+<div id="usuario-overlay" style="display:none; position:fixed; inset:0; background:rgba(14,28,46,0.55); z-index:100; align-items:flex-start; justify-content:center; padding:40px 20px; overflow:auto;">
+  <div class="panel" style="max-width:420px; width:100%; margin:0;">
+    <div class="panel-head">
+      <h2 class="display">¿Quién sos?</h2>
+      <button class="btn btn-ghost btn-sm" id="btn-usuario-cerrar">✕ Cerrar</button>
+    </div>
+    <div class="info-banner">
+      Esto es solo para este navegador/dispositivo — no se sincroniza. Sirve para que las
+      modificaciones que hagas queden identificadas con tu nombre en cada proyecto y en el historial.
+    </div>
+    <div class="form-grid" style="grid-template-columns: 1fr;">
+      <div class="field"><label>Tu nombre</label><input class="text-input" id="usuario-nombre" placeholder="Ej: Juan"></div>
+    </div>
+    <div class="editor-actions">
+      <button class="btn btn-primary" id="btn-usuario-guardar">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ---- Overlay: historial de modificaciones ---- -->
+<div id="historial-overlay" style="display:none; position:fixed; inset:0; background:rgba(14,28,46,0.55); z-index:100; align-items:flex-start; justify-content:center; padding:40px 20px; overflow:auto;">
+  <div class="panel" style="max-width:640px; width:100%; margin:0;">
+    <div class="panel-head">
+      <h2 class="display">Historial de modificaciones</h2>
+      <button class="btn btn-ghost btn-sm" id="btn-historial-cerrar">✕ Cerrar</button>
+    </div>
+    <div class="info-banner">
+      Se guarda y sincroniza junto con los precios y proyectos, así los dos ven la actividad del otro.
+      Se conservan los últimos 300 movimientos.
+    </div>
+    <div id="historial-lista" style="display:flex; flex-direction:column; gap:2px; max-height:60vh; overflow:auto;"></div>
+    <div id="historial-vacio" class="hint" style="display:none; padding:14px 0;">Todavía no hay movimientos registrados.</div>
   </div>
 </div>
 
@@ -409,6 +453,7 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
         <h2 class="display" id="editor-title">Nuevo proyecto</h2>
         <button class="btn btn-ghost" id="btn-volver">&larr; Volver a proyectos</button>
       </div>
+      <p class="meta-autoria" id="editor-autoria" style="display:none;"></p>
       <div class="form-grid">
         <div class="field"><label>Nombre del proyecto</label><input class="text-input" id="f-nombre" placeholder="Ej: Casa Rodríguez"></div>
         <div class="field"><label>Cliente</label><input class="text-input" id="f-cliente"></div>
@@ -633,7 +678,7 @@ const SEED_PRECIOS = [
   ["Trabajos adicionales","Conexión al medidor (trabajo en tensión)","u",true],
 ];
 
-const APP_VERSION = '1.4';
+const APP_VERSION = '1.5';
 
 let precios = [];              // [{id, categoria, item, unidad, precio, esExtra}]
 let proyectosIndex = [];       // [{id, nombre, cliente, fecha, total}]
@@ -909,6 +954,96 @@ document.getElementById('btn-empresa-guardar').addEventListener('click', async (
 });
 
 
+// ---------------------------------------------------------------------
+// Identidad del usuario: solo para este navegador/dispositivo, NO se
+// sincroniza entre las dos personas (cada una configura la suya). Sirve
+// para identificar quién hizo cada cambio en el historial y en los
+// proyectos.
+// ---------------------------------------------------------------------
+let usuarioActual = '';
+
+async function loadUsuarioActual(){
+  try{
+    const res = await storageGet('usuario-actual', false);
+    return (res && res.value) ? res.value : '';
+  }catch(e){ return ''; }
+}
+async function saveUsuarioActual(nombre){
+  usuarioActual = nombre;
+  await storageSet('usuario-actual', nombre, false);
+}
+function renderUsuarioHeader(){
+  document.getElementById('btn-usuario-config').textContent = usuarioActual ? ('👤 ' + usuarioActual) : '👤 Identificarte';
+}
+function abrirUsuarioOverlay(){
+  document.getElementById('usuario-nombre').value = usuarioActual || '';
+  document.getElementById('usuario-overlay').style.display = 'flex';
+}
+document.getElementById('btn-usuario-config').addEventListener('click', abrirUsuarioOverlay);
+document.getElementById('btn-usuario-cerrar').addEventListener('click', () => { document.getElementById('usuario-overlay').style.display = 'none'; });
+document.getElementById('btn-usuario-guardar').addEventListener('click', async () => {
+  const nombre = document.getElementById('usuario-nombre').value.trim();
+  if(!nombre){ showToast('Poné al menos tu nombre'); return; }
+  await saveUsuarioActual(nombre);
+  renderUsuarioHeader();
+  document.getElementById('usuario-overlay').style.display = 'none';
+  showToast('Listo, quedaste identificado como ' + nombre);
+});
+
+// ---------------------------------------------------------------------
+// Historial de modificaciones: compartido y sincronizado igual que los
+// precios y proyectos, para que las dos personas vean toda la actividad.
+// ---------------------------------------------------------------------
+let historial = []; // [{id, fecha, usuario, accion, detalle}]
+const LIMITE_HISTORIAL = 300;
+
+async function loadHistorial(){
+  try{
+    const res = await storageGet('historial', false);
+    if(res && res.value) return JSON.parse(res.value);
+  }catch(e){ /* todavía no hay historial guardado */ }
+  return [];
+}
+async function saveHistorial(lista){
+  historial = lista;
+  try{ await storageSet('historial', JSON.stringify(lista), false); }
+  catch(e){ console.error('No se pudo guardar el historial', e); }
+}
+async function registrarHistorial(accion, detalle){
+  const entry = { id: uid(), fecha: Date.now(), usuario: usuarioActual || 'Sin identificar', accion, detalle: detalle || '' };
+  await saveHistorial([entry, ...historial].slice(0, LIMITE_HISTORIAL));
+  if(document.getElementById('historial-overlay').style.display === 'flex') renderHistorial();
+}
+function fechaHoraLegible(ts){
+  if(!ts) return '-';
+  const d = new Date(ts);
+  return d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+}
+function renderHistorial(){
+  const cont = document.getElementById('historial-lista');
+  const vacio = document.getElementById('historial-vacio');
+  cont.innerHTML = '';
+  if(historial.length === 0){
+    vacio.style.display = 'block';
+    return;
+  }
+  vacio.style.display = 'none';
+  historial.slice().sort((a,b) => b.fecha - a.fecha).forEach(h => {
+    const fila = document.createElement('div');
+    fila.className = 'historial-fila';
+    fila.innerHTML = `
+      <span class="historial-texto"><b>${h.usuario}</b> ${h.accion}${h.detalle ? ' <b>' + h.detalle + '</b>' : ''}</span>
+      <span class="historial-fecha">${fechaHoraLegible(h.fecha)}</span>`;
+    cont.appendChild(fila);
+  });
+}
+document.getElementById('btn-historial').addEventListener('click', () => {
+  renderHistorial();
+  document.getElementById('historial-overlay').style.display = 'flex';
+});
+document.getElementById('btn-historial-cerrar').addEventListener('click', () => { document.getElementById('historial-overlay').style.display = 'none'; });
+
+
 // Ítems obsoletos que ya no se cotizan como línea aparte en el presupuesto
 // (térmicas y diferenciales se calculan en la sección Circuitos de cada proyecto)
 const CATEGORIAS_OBSOLETAS = ['Térmicas', 'Diferenciales'];
@@ -961,41 +1096,34 @@ async function loadProyecto(id){
   return null;
 }
 async function saveProyectoActual(){
+  const esNuevo = !proyectosIndex.some(p => p.id === proyectoActual.id);
   proyectoActual.updatedAt = Date.now();
-  const {instalacion, extras} = calcularTotales(proyectoActual);
+  proyectoActual.actualizadoPor = usuarioActual || 'Sin identificar';
+  proyectoActual.actualizadoEl = proyectoActual.updatedAt;
+  if(!proyectoActual.creadoPor) proyectoActual.creadoPor = proyectoActual.actualizadoPor;
   try{
     await storageSet('proyecto:' + proyectoActual.id, JSON.stringify(proyectoActual), false);
   }catch(e){ showToast('No se pudo guardar el proyecto: ' + e.message); console.error(e); return; }
 
-  ensureEstadoPago(proyectoActual);
-  const {total: totalFinal} = totalFinalProyecto(proyectoActual);
   const idx = proyectosIndex.findIndex(p => p.id === proyectoActual.id);
-  const entry = {
-    id: proyectoActual.id,
-    nombre: proyectoActual.nombre || '(sin nombre)',
-    cliente: proyectoActual.cliente || '',
-    obra: proyectoActual.obra || '',
-    fecha: proyectoActual.fecha || '',
-    creadoEl: proyectoActual.createdAt || Date.now(),
-    total: instalacion + extras,
-    estado: proyectoActual.estado,
-    pagoEstado: proyectoActual.pago.estado,
-    pagoPorcentaje: proyectoActual.pago.porcentaje,
-    totalFinal: totalFinal,
-    ajustado: !!proyectoActual.ajusteFinal.activo,
-  };
+  const entry = construirEntryIndice(proyectoActual);
   if(idx >= 0) proyectosIndex[idx] = entry; else proyectosIndex.push(entry);
   await saveProyectosIndex();
+  await registrarHistorial(esNuevo ? 'creó el proyecto' : 'editó el proyecto', proyectoActual.nombre || '(sin nombre)');
+  actualizarAutoriaEnEditor();
   showToast('Proyecto guardado');
   if(githubConfig) sincronizarConGitHub({ push: true, silencioso: true });
 }
 async function eliminarProyecto(id){
   if(!(await confirmDialog('¿Eliminar este proyecto? No se puede deshacer.'))) return;
+  const entry = proyectosIndex.find(p => p.id === id);
   try{ await storageDelete('proyecto:' + id, false); }catch(e){ /* puede no existir */ }
   proyectosIndex = proyectosIndex.filter(p => p.id !== id);
   await saveProyectosIndex();
+  await registrarHistorial('eliminó el proyecto', entry ? entry.nombre : '');
   renderProyectosGrid();
   showToast('Proyecto eliminado');
+  if(githubConfig) sincronizarConGitHub({ push: true, silencioso: true });
 }
 
 // ---------------------------------------------------------------------
@@ -1046,13 +1174,20 @@ function renderPreciosTable(){
   body.querySelectorAll('input.price-input').forEach(inp => {
     inp.addEventListener('change', async (e) => {
       const item = precios.find(p => p.id === e.target.dataset.id);
-      if(item){ item.precio = parseFloat(e.target.value) || 0; await savePrecios(precios); showToast('Precio actualizado'); }
+      if(item){
+        item.precio = parseFloat(e.target.value) || 0;
+        await registrarHistorial('actualizó el precio de', `${item.item} → ${money(item.precio)}`);
+        await savePrecios(precios);
+        showToast('Precio actualizado');
+      }
     });
   });
   body.querySelectorAll('button[data-del]').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       if(!(await confirmDialog('¿Eliminar este ítem de la lista de precios?'))) return;
+      const item = precios.find(p => p.id === e.target.dataset.del);
       precios = precios.filter(p => p.id !== e.target.dataset.del);
+      await registrarHistorial('eliminó el ítem de precios', item ? item.item : '');
       await savePrecios(precios);
       renderPreciosTable();
       renderCategoriasDatalist();
@@ -1079,6 +1214,7 @@ document.getElementById('btn-add-item').addEventListener('click', async () => {
   if(!categoria || !item){ showToast('Completá categoría e ítem'); return; }
 
   precios.push({ id: uid(), categoria, item, unidad, precio, esExtra });
+  await registrarHistorial('agregó el ítem de precios', item);
   await savePrecios(precios);
   renderPreciosTable();
   renderCategoriasDatalist();
@@ -1163,6 +1299,7 @@ function renderProyectosGrid(){
         <span class="badge-pill badge-pago ${pagoEstado}">${ESTADOS_PAGO[pagoEstado] || pagoEstado}${pagoEstado === 'parcial' ? ' · ' + pagoPorcentaje + '%' : ''}</span>
       </div>
       <div class="total">${money(totalMostrado)}${p.ajustado ? ' <span class="hint" style="font-weight:400;">(ajustado)</span>' : ''}</div>
+      ${p.actualizadoPor ? `<div class="meta-autoria">Últ. mod: ${p.actualizadoPor}</div>` : ''}
       <div class="card-actions">
         <button class="btn btn-ghost btn-sm" data-open="${p.id}">Abrir</button>
         <button class="btn btn-danger btn-sm" data-del="${p.id}">Eliminar</button>
@@ -1263,6 +1400,7 @@ function nuevoProyecto(){
     id: uid(), nombre: '', cliente: '', obra: '', fecha: todayISO(), tipoInstalacion: 'Monofásica',
     items: itemsIniciales(), circuitos: defaultCircuitos(), planoObra: null, createdAt: Date.now(),
     estado: 'preliminar', pago: defaultPago(), ajusteFinal: defaultAjusteFinal(), descuento: defaultDescuento(),
+    creadoPor: usuarioActual || 'Sin identificar', actualizadoPor: '', actualizadoEl: 0,
   };
   abrirEditor('Nuevo proyecto');
 }
@@ -1274,6 +1412,20 @@ async function abrirProyecto(id){
   ensureEstadoPago(proyectoActual);
   if(proyectoActual.planoObra === undefined) proyectoActual.planoObra = null;
   abrirEditor(p.nombre || 'Proyecto');
+}
+
+function actualizarAutoriaEnEditor(){
+  const el = document.getElementById('editor-autoria');
+  if(!proyectoActual || !proyectoActual.actualizadoPor){
+    el.style.display = 'none';
+    return;
+  }
+  const partes = [`Creado por ${proyectoActual.creadoPor || 'Sin identificar'}`];
+  if(proyectoActual.actualizadoEl){
+    partes.push(`Última modificación: ${proyectoActual.actualizadoPor} (${fechaHoraLegible(proyectoActual.actualizadoEl)})`);
+  }
+  el.textContent = partes.join(' · ');
+  el.style.display = 'block';
 }
 
 function abrirEditor(titulo){
@@ -1296,6 +1448,7 @@ function abrirEditor(titulo){
   document.getElementById('f-descuento-tipo').value = proyectoActual.descuento.tipo || 'porcentaje';
   document.getElementById('f-descuento-valor').value = proyectoActual.descuento.valor || 0;
   document.getElementById('f-descuento-motivo').value = proyectoActual.descuento.motivo || '';
+  actualizarAutoriaEnEditor();
   renderEditorItems();
   renderCircuitosPanel();
   renderPlanoObra();
@@ -2022,18 +2175,34 @@ async function exportarTodo(){
 // Fusiona una lista de proyectos "remotos" (de un archivo importado o de GitHub)
 // con los proyectos locales: agrega los nuevos, y actualiza los existentes
 // solo si la versión remota es más nueva (por updatedAt/createdAt).
+function construirEntryIndice(proyecto){
+  ensureEstadoPago(proyecto);
+  const {instalacion, extras} = calcularTotales(proyecto);
+  const {total: totalFinal} = totalFinalProyecto(proyecto);
+  return {
+    id: proyecto.id,
+    nombre: proyecto.nombre || '(sin nombre)',
+    cliente: proyecto.cliente || '',
+    obra: proyecto.obra || '',
+    fecha: proyecto.fecha || '',
+    creadoEl: proyecto.createdAt || Date.now(),
+    total: instalacion + extras,
+    estado: proyecto.estado,
+    pagoEstado: proyecto.pago.estado,
+    pagoPorcentaje: proyecto.pago.porcentaje,
+    totalFinal: totalFinal,
+    ajustado: !!proyecto.ajusteFinal.activo,
+    actualizadoPor: proyecto.actualizadoPor || '',
+  };
+}
+
 async function fusionarProyectos(proyectosRemotos){
   let nuevos = 0, actualizados = 0, sinCambios = 0;
   for(const remoto of proyectosRemotos){
     const yaExiste = proyectosIndex.some(p => p.id === remoto.id);
     if(!yaExiste){
       await storageSet('proyecto:' + remoto.id, JSON.stringify(remoto), false);
-      const {instalacion, extras} = calcularTotales(remoto);
-      proyectosIndex.push({
-        id: remoto.id, nombre: remoto.nombre || '(sin nombre)',
-        cliente: remoto.cliente || '', obra: remoto.obra || '', fecha: remoto.fecha || '',
-        creadoEl: remoto.createdAt || Date.now(), total: instalacion + extras,
-      });
+      proyectosIndex.push(construirEntryIndice(remoto));
       nuevos++;
     }else{
       const actual = await loadProyecto(remoto.id);
@@ -2041,13 +2210,8 @@ async function fusionarProyectos(proyectosRemotos){
       const tsRemoto = remoto.updatedAt || remoto.createdAt || 0;
       if(tsRemoto > tsActual){
         await storageSet('proyecto:' + remoto.id, JSON.stringify(remoto), false);
-        const {instalacion, extras} = calcularTotales(remoto);
         const idx = proyectosIndex.findIndex(p => p.id === remoto.id);
-        proyectosIndex[idx] = {
-          id: remoto.id, nombre: remoto.nombre || '(sin nombre)',
-          cliente: remoto.cliente || '', obra: remoto.obra || '', fecha: remoto.fecha || '',
-          creadoEl: remoto.createdAt || Date.now(), total: instalacion + extras,
-        };
+        proyectosIndex[idx] = construirEntryIndice(remoto);
         actualizados++;
       }else{
         sinCambios++;
@@ -2179,6 +2343,7 @@ async function construirPayloadLocal(){
     precios, preciosUpdatedAt: await getPreciosUpdatedAt(),
     proyectos: todosLosProyectos,
     empresa: empresaConfig,
+    historial,
   };
 }
 
@@ -2209,12 +2374,19 @@ async function sincronizarConGitHub({ push = false, silencioso = false } = {}){
         await storageSet('empresa-config', JSON.stringify(empresaConfig), false);
         renderEmpresaHeader();
       }
+      if(Array.isArray(remoto.historial) && remoto.historial.length){
+        const idsLocales = new Set(historial.map(h => h.id));
+        const combinados = historial.concat(remoto.historial.filter(h => !idsLocales.has(h.id)));
+        combinados.sort((a,b) => b.fecha - a.fecha);
+        await saveHistorial(combinados.slice(0, LIMITE_HISTORIAL));
+        if(document.getElementById('historial-overlay').style.display === 'flex') renderHistorial();
+      }
       renderPreciosTable();
       renderCategoriasDatalist();
       renderProyectosGrid();
       if(proyectoActual && document.getElementById('view-editor').classList.contains('active')){
         const actualizado = await loadProyecto(proyectoActual.id);
-        if(actualizado){ proyectoActual = actualizado; ensureCircuitos(proyectoActual); renderEditorItems(); renderCircuitosPanel(); renderPlanoObra(); }
+        if(actualizado){ proyectoActual = actualizado; ensureCircuitos(proyectoActual); renderEditorItems(); renderCircuitosPanel(); renderPlanoObra(); actualizarAutoriaEnEditor(); }
       }
     }
 
@@ -2275,11 +2447,15 @@ document.getElementById('btn-sync-quitar').addEventListener('click', async () =>
   precios = await loadPrecios();
   proyectosIndex = await loadProyectosIndex();
   empresaConfig = await loadEmpresaConfig();
+  usuarioActual = await loadUsuarioActual();
+  historial = await loadHistorial();
   renderEmpresaHeader();
+  renderUsuarioHeader();
   renderPreciosTable();
   renderCategoriasDatalist();
   renderProyectosGrid();
   showView('proyectos');
+  if(!usuarioActual) abrirUsuarioOverlay();
 
   githubConfig = await cargarConfigGitHub();
   if(githubConfig){
