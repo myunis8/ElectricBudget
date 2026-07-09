@@ -239,20 +239,20 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
 </div>
 
 <div id="empresa-overlay" style="display:none; position:fixed; inset:0; background:rgba(14,28,46,0.55); z-index:100; align-items:flex-start; justify-content:center; padding:40px 20px; overflow:auto;">
-  <div class="panel" style="max-width:480px; width:100%; margin:0;">
+  <div class="panel" style="max-width:520px; width:100%; margin:0;">
     <div class="panel-head">
       <h2 class="display">Datos de la empresa</h2>
       <button class="btn btn-ghost btn-sm" id="btn-empresa-cerrar">✕ Cerrar</button>
     </div>
     <div class="info-banner">
-      Esto se usa para darle más profesionalismo a la app y a los PDF: el nombre aparece en el
-      encabezado, y el logo se muestra como marca de agua tenue en los presupuestos y también
-      arriba en la aplicación. Se guarda y sincroniza junto con los precios y proyectos.
+      Esto se usa para darle más profesionalismo a los PDF y a la app. Se guarda y sincroniza
+      junto con los precios y proyectos.
     </div>
     <div class="form-grid" style="grid-template-columns: 1fr;">
       <div class="field"><label>Nombre de la empresa</label><input class="text-input" id="empresa-nombre" placeholder="Ej: Instalaciones Eléctricas Pérez"></div>
+
       <div class="field">
-        <label>Logo (imagen, ideal cuadrada o rectangular, fondo transparente)</label>
+        <label>Logo (esquina superior derecha del PDF y arriba en la app)</label>
         <input type="file" id="empresa-logo-input" accept="image/*" style="display:none;">
         <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
           <div id="empresa-logo-preview-wrap" style="display:none; border:1px solid var(--line); border-radius:8px; padding:8px; background:#f8f9f9;">
@@ -261,6 +261,19 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
           <button class="btn btn-ghost btn-sm" id="btn-empresa-logo-subir">Subir logo</button>
           <button class="btn btn-danger btn-sm" id="btn-empresa-logo-quitar" style="display:none;">Quitar logo</button>
         </div>
+      </div>
+
+      <div class="field" style="margin-top:6px;">
+        <label>Marca de agua (imagen de fondo, tenue, centrada en cada página del PDF)</label>
+        <input type="file" id="empresa-marca-agua-input" accept="image/*" style="display:none;">
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <div id="empresa-marca-agua-preview-wrap" style="display:none; border:1px solid var(--line); border-radius:8px; padding:8px; background:#f8f9f9;">
+            <img id="empresa-marca-agua-preview" src="" style="max-height:80px; max-width:160px; display:block;">
+          </div>
+          <button class="btn btn-ghost btn-sm" id="btn-empresa-marca-agua-subir">Subir marca de agua</button>
+          <button class="btn btn-danger btn-sm" id="btn-empresa-marca-agua-quitar" style="display:none;">Quitar marca de agua</button>
+        </div>
+        <div class="hint">Puede ser la misma imagen que el logo, o una distinta (por ejemplo, un isotipo simple sin texto queda mejor de fondo).</div>
       </div>
     </div>
     <div class="editor-actions">
@@ -620,7 +633,7 @@ const SEED_PRECIOS = [
   ["Trabajos adicionales","Conexión al medidor (trabajo en tensión)","u",true],
 ];
 
-const APP_VERSION = '1.3';
+const APP_VERSION = '1.4';
 
 let precios = [];              // [{id, categoria, item, unidad, precio, esExtra}]
 let proyectosIndex = [];       // [{id, nombre, cliente, fecha, total}]
@@ -748,14 +761,15 @@ async function getPreciosUpdatedAt(){
 }
 
 // ---------------------------------------------------------------------
-// Configuración de empresa: nombre + logo (para el header y como marca de
-// agua en los PDF). Se guarda igual que los precios y viaja en el mismo
-// backup/sincronización con GitHub.
+// Configuración de empresa: nombre, logo (arriba a la derecha del PDF y en
+// el header de la app) y marca de agua (imagen de fondo tenue en el PDF).
+// Son dos imágenes independientes. Se guarda igual que los precios y viaja
+// en el mismo backup/sincronización con GitHub.
 // ---------------------------------------------------------------------
-let empresaConfig = { nombre: '', logo: null, updatedAt: 0 }; // logo: {dataUrl, width, height} | null
-const LIMITE_LOGO_BYTES = 1.5 * 1024 * 1024; // 1.5MB: los logos no necesitan más
+let empresaConfig = { nombre: '', logo: null, marcaAgua: null, updatedAt: 0 }; // {dataUrl, width, height} | null
+const LIMITE_LOGO_BYTES = 1.5 * 1024 * 1024; // 1.5MB: ni el logo ni la marca de agua necesitan más
 
-function defaultEmpresaConfig(){ return { nombre: '', logo: null, updatedAt: 0 }; }
+function defaultEmpresaConfig(){ return { nombre: '', logo: null, marcaAgua: null, updatedAt: 0 }; }
 
 async function loadEmpresaConfig(){
   try{
@@ -807,22 +821,37 @@ function leerImagenComoDataUrlConMedidas(file){
 
 function abrirEmpresaOverlay(){
   document.getElementById('empresa-nombre').value = empresaConfig.nombre || '';
-  const wrap = document.getElementById('empresa-logo-preview-wrap');
-  const quitarBtn = document.getElementById('btn-empresa-logo-quitar');
+
+  const wrapLogo = document.getElementById('empresa-logo-preview-wrap');
+  const quitarLogoBtn = document.getElementById('btn-empresa-logo-quitar');
   if(empresaConfig.logo && empresaConfig.logo.dataUrl){
     document.getElementById('empresa-logo-preview').src = empresaConfig.logo.dataUrl;
-    wrap.style.display = 'block';
-    quitarBtn.style.display = 'inline-flex';
+    wrapLogo.style.display = 'block';
+    quitarLogoBtn.style.display = 'inline-flex';
   }else{
-    wrap.style.display = 'none';
-    quitarBtn.style.display = 'none';
+    wrapLogo.style.display = 'none';
+    quitarLogoBtn.style.display = 'none';
   }
+
+  const wrapMarca = document.getElementById('empresa-marca-agua-preview-wrap');
+  const quitarMarcaBtn = document.getElementById('btn-empresa-marca-agua-quitar');
+  if(empresaConfig.marcaAgua && empresaConfig.marcaAgua.dataUrl){
+    document.getElementById('empresa-marca-agua-preview').src = empresaConfig.marcaAgua.dataUrl;
+    wrapMarca.style.display = 'block';
+    quitarMarcaBtn.style.display = 'inline-flex';
+  }else{
+    wrapMarca.style.display = 'none';
+    quitarMarcaBtn.style.display = 'none';
+  }
+
   document.getElementById('empresa-overlay').style.display = 'flex';
 }
 document.getElementById('btn-empresa-config').addEventListener('click', abrirEmpresaOverlay);
 document.getElementById('btn-empresa-cerrar').addEventListener('click', () => { document.getElementById('empresa-overlay').style.display = 'none'; });
 
-let logoTemporal = null; // logo recién elegido, pendiente de "Guardar"
+let logoTemporal = null;      // logo recién elegido, pendiente de "Guardar"
+let marcaAguaTemporal = null; // marca de agua recién elegida, pendiente de "Guardar"
+
 document.getElementById('btn-empresa-logo-subir').addEventListener('click', () => document.getElementById('empresa-logo-input').click());
 document.getElementById('empresa-logo-input').addEventListener('change', async (e) => {
   const file = e.target.files[0];
@@ -841,14 +870,39 @@ document.getElementById('btn-empresa-logo-quitar').addEventListener('click', () 
   document.getElementById('empresa-logo-preview-wrap').style.display = 'none';
   document.getElementById('btn-empresa-logo-quitar').style.display = 'none';
 });
+
+document.getElementById('btn-empresa-marca-agua-subir').addEventListener('click', () => document.getElementById('empresa-marca-agua-input').click());
+document.getElementById('empresa-marca-agua-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  if(file.size > LIMITE_LOGO_BYTES){ showToast('La imagen es muy pesada (máximo 1.5 MB)'); e.target.value = ''; return; }
+  try{
+    marcaAguaTemporal = await leerImagenComoDataUrlConMedidas(file);
+    document.getElementById('empresa-marca-agua-preview').src = marcaAguaTemporal.dataUrl;
+    document.getElementById('empresa-marca-agua-preview-wrap').style.display = 'block';
+    document.getElementById('btn-empresa-marca-agua-quitar').style.display = 'inline-flex';
+  }catch(err){ showToast('No se pudo leer la imagen'); console.error(err); }
+  e.target.value = '';
+});
+document.getElementById('btn-empresa-marca-agua-quitar').addEventListener('click', () => {
+  marcaAguaTemporal = { removido: true };
+  document.getElementById('empresa-marca-agua-preview-wrap').style.display = 'none';
+  document.getElementById('btn-empresa-marca-agua-quitar').style.display = 'none';
+});
+
 document.getElementById('btn-empresa-guardar').addEventListener('click', async () => {
   const nombre = document.getElementById('empresa-nombre').value.trim();
   let logo = empresaConfig.logo;
   if(logoTemporal){
     logo = logoTemporal.removido ? null : { dataUrl: logoTemporal.dataUrl, width: logoTemporal.width, height: logoTemporal.height };
   }
-  await saveEmpresaConfig({ nombre, logo });
+  let marcaAgua = empresaConfig.marcaAgua;
+  if(marcaAguaTemporal){
+    marcaAgua = marcaAguaTemporal.removido ? null : { dataUrl: marcaAguaTemporal.dataUrl, width: marcaAguaTemporal.width, height: marcaAguaTemporal.height };
+  }
+  await saveEmpresaConfig({ nombre, logo, marcaAgua });
   logoTemporal = null;
+  marcaAguaTemporal = null;
   renderEmpresaHeader();
   document.getElementById('empresa-overlay').style.display = 'none';
   showToast('Datos de la empresa guardados');
@@ -1620,7 +1674,7 @@ function encabezadoPDF(doc, proyecto, titulo, marginX){
   let y = 50;
   const pageW = doc.internal.pageSize.getWidth();
 
-  // Logo chico arriba a la derecha (si hay uno cargado), y nombre de la empresa arriba a la izquierda
+  // Logo chico arriba a la derecha (si hay uno cargado)
   if(empresaConfig.logo && empresaConfig.logo.dataUrl){
     try{
       const maxW = 90, maxH = 46;
@@ -1630,11 +1684,6 @@ function encabezadoPDF(doc, proyecto, titulo, marginX){
       const formato = empresaConfig.logo.dataUrl.includes('image/png') ? 'PNG' : (empresaConfig.logo.dataUrl.includes('image/webp') ? 'WEBP' : 'JPEG');
       doc.addImage(empresaConfig.logo.dataUrl, formato, pageW - marginX - w, 24, w, h);
     }catch(e){ console.error('No se pudo dibujar el logo en el encabezado', e); }
-  }
-  if(empresaConfig.nombre){
-    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(90,90,90);
-    doc.text(empresaConfig.nombre, marginX, y);
-    y += 18;
   }
 
   doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(22,40,63);
@@ -1656,24 +1705,24 @@ function encabezadoPDF(doc, proyecto, titulo, marginX){
 }
 
 function agregarMarcaDeAguaEnPaginaActual(doc){
-  if(!empresaConfig.logo || !empresaConfig.logo.dataUrl) return;
+  if(!empresaConfig.marcaAgua || !empresaConfig.marcaAgua.dataUrl) return;
   try{
     const pageW = doc.internal.pageSize.getWidth();
     const pageH = doc.internal.pageSize.getHeight();
     const maxW = pageW * 0.55, maxH = pageH * 0.55;
-    const ratio = empresaConfig.logo.width / empresaConfig.logo.height;
+    const ratio = empresaConfig.marcaAgua.width / empresaConfig.marcaAgua.height;
     let w = maxW, h = w / ratio;
     if(h > maxH){ h = maxH; w = h * ratio; }
     const x = (pageW - w) / 2, y = (pageH - h) / 2;
-    const formato = empresaConfig.logo.dataUrl.includes('image/png') ? 'PNG' : (empresaConfig.logo.dataUrl.includes('image/webp') ? 'WEBP' : 'JPEG');
+    const formato = empresaConfig.marcaAgua.dataUrl.includes('image/png') ? 'PNG' : (empresaConfig.marcaAgua.dataUrl.includes('image/webp') ? 'WEBP' : 'JPEG');
     doc.saveGraphicsState();
     if(doc.GState) doc.setGState(new doc.GState({ opacity: 0.07 }));
-    doc.addImage(empresaConfig.logo.dataUrl, formato, x, y, w, h);
+    doc.addImage(empresaConfig.marcaAgua.dataUrl, formato, x, y, w, h);
     doc.restoreGraphicsState();
   }catch(e){ console.error('No se pudo dibujar la marca de agua', e); }
 }
 function agregarMarcaDeAguaATodasLasPaginas(doc){
-  if(!empresaConfig.logo || !empresaConfig.logo.dataUrl) return;
+  if(!empresaConfig.marcaAgua || !empresaConfig.marcaAgua.dataUrl) return;
   const total = doc.internal.getNumberOfPages();
   for(let i = 1; i <= total; i++){ doc.setPage(i); agregarMarcaDeAguaEnPaginaActual(doc); }
 }
@@ -1776,6 +1825,7 @@ function generarPDFPresupuesto(proyecto){
   const leyenda = 'Los valores de este presupuesto corresponden al día de su emisión (' +
     (fechaLegible(proyecto.fecha) || '-') + ') y podrían sufrir modificaciones por inflación ' +
     'u otras variaciones de costos hasta el momento de confirmar y ejecutar el trabajo.';
+  doc.setFont('helvetica','italic'); doc.setFontSize(8.5); doc.setTextColor(110,110,110);
   const lineas = doc.splitTextToSize(leyenda, anchoPagina - marginX * 2);
   if(y + lineas.length * 11 > 780){ doc.addPage(); y = 50; }
   doc.setFont('helvetica','italic'); doc.setFontSize(8.5); doc.setTextColor(110,110,110);
