@@ -239,6 +239,21 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
 
 <!-- ---- Overlay: configuración de empresa (nombre + logo) ---- -->
 <!-- ---- Overlay: confirmación (reemplaza confirm() nativo, que falla en vistas embebidas) ---- -->
+<!-- ---- Overlay: vista previa de PDF antes de descargar ---- -->
+<div id="pdf-preview-overlay" style="display:none; position:fixed; inset:0; background:rgba(14,28,46,0.75); z-index:300; align-items:center; justify-content:center; padding:20px;">
+  <div class="panel" style="max-width:900px; width:100%; height:88vh; margin:0; display:flex; flex-direction:column;">
+    <div class="panel-head">
+      <h2 class="display" id="pdf-preview-titulo" style="font-size:1.1rem;">Vista previa</h2>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <a class="btn btn-copper btn-sm" id="btn-pdf-preview-descargar" download>⇩ Descargar</a>
+        <button class="btn btn-ghost btn-sm" id="btn-pdf-preview-cerrar">✕ Cerrar</button>
+      </div>
+    </div>
+    <iframe id="pdf-preview-frame" title="Vista previa del PDF" style="flex:1; width:100%; border:1px solid var(--line); border-radius:8px; background:#525659;"></iframe>
+    <div class="hint" style="margin-top:8px;">Si en tu navegador no se ve la vista previa (pasa en algunos celulares), descargalo directo con el botón de arriba y abrilo desde ahí.</div>
+  </div>
+</div>
+
 <div id="confirm-overlay" style="display:none; position:fixed; inset:0; background:rgba(14,28,46,0.6); z-index:200; align-items:center; justify-content:center; padding:20px;">
   <div class="panel" style="max-width:440px; width:100%; margin:0;">
     <h2 class="display" style="margin-top:0;">Confirmar</h2>
@@ -734,7 +749,7 @@ const SEED_PRECIOS = [
   ["Trabajos adicionales","Conexión al medidor (trabajo en tensión)","u",true],
 ];
 
-const APP_VERSION = '1.8';
+const APP_VERSION = '1.9';
 
 let precios = [];              // [{id, categoria, item, unidad, precio, esExtra}]
 let proyectosIndex = [];       // [{id, nombre, cliente, fecha, total}]
@@ -2203,16 +2218,30 @@ function agregarMarcaDeAguaATodasLasPaginas(doc){
 function descargarPDF(doc, proyecto, prefijoArchivo, linkId){
   const nombreArchivo = prefijoArchivo + '_' + (proyecto.nombre || 'proyecto').replace(/\s+/g,'_') + '.pdf';
   const blobUrl = doc.output('bloburl');
+
+  // Vista previa en un modal, en vez de descargar directo: así se puede revisar
+  // el PDF antes de decidir bajarlo.
+  document.getElementById('pdf-preview-titulo').textContent = nombreArchivo;
+  document.getElementById('pdf-preview-frame').src = blobUrl;
+  const btnDescargar = document.getElementById('btn-pdf-preview-descargar');
+  btnDescargar.href = blobUrl;
+  btnDescargar.download = nombreArchivo;
+  document.getElementById('pdf-preview-overlay').style.display = 'flex';
+
+  // Mantenemos también el link de respaldo (oculto por defecto) por si algún
+  // navegador de celular bloquea la vista previa en iframe.
   const link = document.getElementById(linkId);
   link.href = blobUrl;
   link.download = nombreArchivo;
   link.style.display = 'inline-flex';
   link.textContent = 'Descargar ' + nombreArchivo;
 
-  try{ doc.save(nombreArchivo); }
-  catch(e){ console.error('Descarga automática falló, usá el link de abajo:', e); }
-  showToast('PDF generado. Si no se descargó solo, usá el botón "Descargar"');
+  showToast('PDF generado, revisalo en la vista previa');
 }
+document.getElementById('btn-pdf-preview-cerrar').addEventListener('click', () => {
+  document.getElementById('pdf-preview-overlay').style.display = 'none';
+  document.getElementById('pdf-preview-frame').src = 'about:blank';
+});
 
 function generarPDFPresupuesto(proyecto){
   const { jsPDF } = window.jspdf;
