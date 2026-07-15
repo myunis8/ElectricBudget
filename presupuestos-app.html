@@ -734,7 +734,7 @@ const SEED_PRECIOS = [
   ["Trabajos adicionales","Conexión al medidor (trabajo en tensión)","u",true],
 ];
 
-const APP_VERSION = '1.7';
+const APP_VERSION = '1.8';
 
 let precios = [];              // [{id, categoria, item, unidad, precio, esExtra}]
 let proyectosIndex = [];       // [{id, nombre, cliente, fecha, total}]
@@ -2384,7 +2384,7 @@ function generarPDFMateriales(proyecto){
       doc.autoTable({
         startY: y + 6, margin: { left: marginX, right: marginX },
         head: [['Material','Unidad','Cantidad','Referencia']],
-        body: circuitos.materialesExtra.map(m => [m.nombre || '-', m.unidad || 'u', String(m.cantidad || 0), m.link ? 'Ver ejemplo ↗' : '']),
+        body: circuitos.materialesExtra.map(m => [m.nombre || '-', m.unidad || 'u', String(m.cantidad || 0), m.link ? 'Ver ejemplo' : '']),
         styles: { fontSize:10, cellPadding:6 },
         headStyles: { fillColor:[22,40,63], textColor:255 },
         columnStyles: { 2:{halign:'center'}, 3:{textColor:[43,108,163]} },
