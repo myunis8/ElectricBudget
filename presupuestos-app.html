@@ -157,10 +157,13 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
 .categoria-block h3{ font-size:0.85rem; color:var(--navy); margin:0 0 8px 0; display:flex; align-items:center; gap:8px; }
 .categoria-block.extra h3{ color:var(--copper); }
 .categoria-block h3 .badge-extra{ font-size:0.6rem; }
-.item-row{ display:grid; grid-template-columns: 2fr 0.6fr 1fr 0.7fr 1fr; gap:10px; align-items:center; padding:7px 4px; border-bottom:1px solid var(--line); font-size:0.85rem; }
+.item-row{ display:grid; grid-template-columns: 2fr 0.6fr 1fr 0.7fr 1fr 22px; gap:10px; align-items:center; padding:7px 4px; border-bottom:1px solid var(--line); font-size:0.85rem; }
 .item-row .row-name{ color:var(--ink); }
 .item-row .row-unit{ color:var(--muted); font-size:0.78rem; }
 .item-row .row-subtotal{ font-family:'IBM Plex Mono',monospace; text-align:right; color:var(--ink); }
+.item-row .row-del{ background:none; border:none; color:var(--muted); cursor:pointer; font-size:0.85rem; padding:0; }
+.item-row .row-del:hover{ color:var(--danger); }
+.badge-manual{ font-size:0.62rem; font-family:'Space Grotesk',sans-serif; font-weight:600; color:var(--muted); border:1px solid var(--muted); border-radius:20px; padding:1px 7px; margin-left:6px; }
 
 .totals-box{ margin-top:18px; padding:16px 18px; background:var(--navy); color:#eef2f5; border-radius:var(--radius); display:flex; flex-direction:column; gap:6px; }
 .totals-box .line{ display:flex; justify-content:space-between; font-size:0.88rem; color:#b9c8d4; }
@@ -174,6 +177,7 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
 .circuitos-simple-row .field label, .circuitos-tablero-count label{ font-size:0.7rem; text-transform:uppercase; letter-spacing:0.04em; color:var(--muted); display:block; margin-bottom:4px; }
 .circuitos-tablero-count{ max-width:220px; margin-bottom:18px; }
 .dyn-row{ display:grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap:8px; align-items:center; margin-bottom:8px; }
+.dyn-row.materiales{ grid-template-columns: 2fr 1fr 1fr auto; }
 .dyn-row input, .dyn-row select{ padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:0.82rem; }
 .dyn-row-header{ display:grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap:8px; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.04em; color:var(--muted); margin-bottom:4px; }
 .resumen-circuitos{ display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:10px; }
@@ -196,7 +200,7 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
 @media (max-width: 640px){
   .add-form{ grid-template-columns: 1fr 1fr; }
   .form-grid{ grid-template-columns: 1fr; }
-  .item-row{ grid-template-columns: 1.6fr 0.6fr 0.8fr 0.6fr; }
+  .item-row{ grid-template-columns: 1.6fr 0.6fr 0.8fr 0.6fr 20px; }
   .item-row .row-subtotal{ display:none; }
   .circuitos-simple-row{ grid-template-columns: 1fr; }
   .dyn-row, .dyn-row-header{ grid-template-columns: 1fr 1fr; }
@@ -497,6 +501,27 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
       </div>
       <div id="editor-items"></div>
 
+      <div style="margin:10px 0 18px 0;">
+        <button class="btn btn-ghost btn-sm" id="btn-mostrar-item-manual">+ Agregar ítem manual</button>
+        <div id="item-manual-form" style="display:none; margin-top:10px; padding:14px; border:1px dashed var(--line); border-radius:10px;">
+          <div class="hint" style="margin-bottom:10px;">
+            Para algo puntual de este proyecto que no querés cargar en la lista de precios general
+            (ej. un material específico que cobrás una sola vez).
+          </div>
+          <div class="form-grid" style="grid-template-columns: 1.4fr 1fr 0.7fr 0.9fr 0.7fr auto;">
+            <div class="field"><label>Nombre</label><input class="text-input" id="im-nombre" placeholder="Ej: Cableado especial"></div>
+            <div class="field"><label>Categoría</label><input class="text-input" id="im-categoria" list="categorias-list" placeholder="Ej: Otros"></div>
+            <div class="field"><label>Unidad</label><input class="text-input" id="im-unidad" value="u"></div>
+            <div class="field"><label>Precio unitario</label><input class="text-input mono" id="im-precio" type="number" min="0" step="0.01" value="0"></div>
+            <div class="field"><label>Cantidad</label><input class="text-input mono" id="im-cantidad" type="number" min="0" step="1" value="1"></div>
+            <div class="field chk"><label style="visibility:hidden">.</label><label class="chk"><input type="checkbox" id="im-extra"> Aparte</label></div>
+          </div>
+          <div class="editor-actions" style="margin-top:8px;">
+            <button class="btn btn-copper btn-sm" id="btn-agregar-item-manual">Agregar al presupuesto</button>
+          </div>
+        </div>
+      </div>
+
       <div class="info-banner">
         <label style="display:flex; align-items:center; gap:8px; font-weight:600; cursor:pointer;">
           <input type="checkbox" id="f-descuento-activo">
@@ -531,19 +556,25 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
       <div class="info-banner" style="margin-top:14px;">
         <label style="display:flex; align-items:center; gap:8px; font-weight:600; cursor:pointer;">
           <input type="checkbox" id="f-ajuste-activo">
-          Ajustar precio final (ej. por inflación o acuerdo con el cliente)
+          Actualizar precio final (ej. por inflación o acuerdo con el cliente)
         </label>
         <div id="f-ajuste-campos" style="display:none; margin-top:10px;">
-          <div class="form-grid">
-            <div class="field"><label>Total final ajustado</label>
-              <input class="text-input mono" id="f-ajuste-monto" type="number" min="0" step="1" value="0">
+          <div class="form-grid" style="grid-template-columns: 1fr 1fr 2fr;">
+            <div class="field"><label>Tipo de actualización</label>
+              <select class="text-input" id="f-ajuste-tipo">
+                <option value="porcentaje">Porcentaje de actualización (%)</option>
+                <option value="monto">Monto final ($)</option>
+              </select>
+            </div>
+            <div class="field"><label id="f-ajuste-valor-label">Valor</label>
+              <input class="text-input mono" id="f-ajuste-valor" type="number" min="0" step="1" value="0">
             </div>
             <div class="field"><label>Motivo / nota (opcional)</label>
               <input class="text-input" id="f-ajuste-nota" placeholder="Ej: ajuste por inflación julio 2026">
             </div>
           </div>
-          <div class="hint">Esto no modifica el PDF del presupuesto (que queda como referencia histórica de los valores al
-            momento de emitirlo) — es solo para llevar registro interno de cuánto se cobra realmente.</div>
+          <div class="hint">Esta actualización SÍ figura en el PDF del presupuesto, como una línea aparte después del total
+            original — los valores de arriba siguen mostrando los precios al día de emisión, tal cual quedaron.</div>
         </div>
         <div class="line total" style="margin-top:10px; border-top:1px dashed var(--line); padding-top:10px;">
           <span>Total final (a cobrar)</span><span class="mono" id="tot-final">$ 0</span>
@@ -632,6 +663,15 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
         <button class="btn btn-ghost btn-sm" id="btn-add-diferencial">+ Agregar diferencial</button>
       </div>
 
+      <div class="circuitos-sub">
+        <h3>Materiales adicionales</h3>
+        <div class="hint" style="margin-bottom:8px;">Para cables de distintos espesores/colores, accesorios de colocación
+          del tablero, y cualquier otro material que quieras que aparezca en el PDF de materiales.</div>
+        <div class="dyn-row-header" style="grid-template-columns: 2fr 1fr 1fr 24px;"><div>Material</div><div>Cantidad</div><div>Unidad</div><div></div></div>
+        <div id="materiales-extra-rows"></div>
+        <button class="btn btn-ghost btn-sm" id="btn-add-material-extra">+ Agregar material</button>
+      </div>
+
       <datalist id="amperajes-list">
         <option value="10A"><option value="16A"><option value="20A"><option value="25A"><option value="32A"><option value="40A">
       </datalist>
@@ -678,7 +718,7 @@ const SEED_PRECIOS = [
   ["Trabajos adicionales","Conexión al medidor (trabajo en tensión)","u",true],
 ];
 
-const APP_VERSION = '1.5';
+const APP_VERSION = '1.6';
 
 let precios = [];              // [{id, categoria, item, unidad, precio, esExtra}]
 let proyectosIndex = [];       // [{id, nombre, cliente, fecha, total}]
@@ -1143,6 +1183,26 @@ document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click
 // ---------------------------------------------------------------------
 // Vista: Precios
 // ---------------------------------------------------------------------
+// Agrupa una lista de ítems (precios o ítems de un proyecto) en "grupos" para
+// renderizar: primero los normales (por categoría, en el orden en que aparecen),
+// y al final TODOS los marcados "aparte", agrupados por categoría. A diferencia
+// de agrupar por categoría completa, esto separa a nivel de cada ítem individual
+// -- así si una categoría tiene items normales y algún item aparte mezclados, los
+// normales quedan arriba y solo el/los ítems marcados aparte bajan al final.
+function agruparItemsParaRender(items, getCategoria, getEsExtra){
+  const categoriasVistas = [];
+  items.forEach(it => { const c = getCategoria(it); if(!categoriasVistas.includes(c)) categoriasVistas.push(c); });
+  const gruposNormales = [];
+  const gruposExtra = [];
+  categoriasVistas.forEach(categoria => {
+    const itemsCategoria = items.filter(it => getCategoria(it) === categoria);
+    const normales = itemsCategoria.filter(it => !getEsExtra(it));
+    const extras = itemsCategoria.filter(it => getEsExtra(it));
+    if(normales.length) gruposNormales.push({ categoria, esExtra: false, items: normales });
+    if(extras.length) gruposExtra.push({ categoria, esExtra: true, items: extras });
+  });
+  return gruposNormales.concat(gruposExtra);
+}
 function categoriasOrdenadas(){
   const seen = [];
   precios.forEach(p => { if(!seen.includes(p.categoria)) seen.push(p.categoria); });
@@ -1152,15 +1212,14 @@ function categoriasOrdenadas(){
 function renderPreciosTable(){
   const body = document.getElementById('price-table-body');
   body.innerHTML = '';
-  categoriasOrdenadas().forEach(categoria => {
-    const items = precios.filter(p => p.categoria === categoria);
-    const esExtra = items.some(i => i.esExtra);
+  const grupos = agruparItemsParaRender(precios, p => p.categoria, p => p.esExtra);
+  grupos.forEach(grupo => {
     const trCat = document.createElement('tr');
-    trCat.className = 'cat-row' + (esExtra ? ' extra' : '');
-    trCat.innerHTML = `<td colspan="4">${categoria}${esExtra ? ' <span class="badge-extra">APARTE</span>' : ''}</td>`;
+    trCat.className = 'cat-row' + (grupo.esExtra ? ' extra' : '');
+    trCat.innerHTML = `<td colspan="4">${grupo.categoria}${grupo.esExtra ? ' <span class="badge-extra">APARTE</span>' : ''}</td>`;
     body.appendChild(trCat);
 
-    items.forEach(p => {
+    grupo.items.forEach(p => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${p.item}</td>
@@ -1205,6 +1264,27 @@ function renderCategoriasDatalist(){
   });
 }
 
+// Cuando se agrega un ítem nuevo a la lista de precios, lo agregamos también (con
+// cantidad 0) a todos los proyectos existentes que todavía no lo tengan, para que
+// esté disponible para cotizar sin tener que recrear el proyecto desde cero.
+async function propagarNuevoItemAProyectos(nuevoItem){
+  let afectados = 0;
+  for(const entry of proyectosIndex){
+    const proyecto = await loadProyecto(entry.id);
+    if(!proyecto) continue;
+    const yaExiste = proyecto.items.some(it => it.categoria === nuevoItem.categoria && it.item === nuevoItem.item);
+    if(yaExiste) continue;
+    proyecto.items.push({
+      id: uid(), precioId: nuevoItem.id, categoria: nuevoItem.categoria, item: nuevoItem.item,
+      unidad: nuevoItem.unidad, precio: nuevoItem.precio, esExtra: nuevoItem.esExtra, cantidad: 0, manual: false,
+    });
+    await storageSet('proyecto:' + proyecto.id, JSON.stringify(proyecto), false);
+    afectados++;
+    if(proyectoActual && proyectoActual.id === proyecto.id) proyectoActual = proyecto;
+  }
+  return afectados;
+}
+
 document.getElementById('btn-add-item').addEventListener('click', async () => {
   const categoria = document.getElementById('new-categoria').value.trim();
   const item = document.getElementById('new-item').value.trim();
@@ -1213,7 +1293,8 @@ document.getElementById('btn-add-item').addEventListener('click', async () => {
   const esExtra = document.getElementById('new-extra').checked;
   if(!categoria || !item){ showToast('Completá categoría e ítem'); return; }
 
-  precios.push({ id: uid(), categoria, item, unidad, precio, esExtra });
+  const nuevoItem = { id: uid(), categoria, item, unidad, precio, esExtra };
+  precios.push(nuevoItem);
   await registrarHistorial('agregó el ítem de precios', item);
   await savePrecios(precios);
   renderPreciosTable();
@@ -1221,7 +1302,12 @@ document.getElementById('btn-add-item').addEventListener('click', async () => {
   document.getElementById('new-item').value = '';
   document.getElementById('new-precio').value = '0';
   document.getElementById('new-extra').checked = false;
-  showToast('Ítem agregado');
+
+  const afectados = await propagarNuevoItemAProyectos(nuevoItem);
+  if(document.getElementById('view-editor').classList.contains('active') && proyectoActual){
+    renderEditorItems(); // por si el proyecto abierto fue uno de los afectados
+  }
+  showToast(afectados > 0 ? `Ítem agregado (también a ${afectados} proyecto${afectados === 1 ? '' : 's'} existente${afectados === 1 ? '' : 's'})` : 'Ítem agregado');
 });
 
 // ---------------------------------------------------------------------
@@ -1334,9 +1420,16 @@ document.getElementById('btn-cancelar-flotante').addEventListener('click', () =>
 // ---------------------------------------------------------------------
 function itemsIniciales(){
   return precios.map(p => ({
-    precioId: p.id, categoria: p.categoria, item: p.item, unidad: p.unidad,
-    precio: p.precio, esExtra: p.esExtra, cantidad: 0
+    id: uid(), precioId: p.id, categoria: p.categoria, item: p.item, unidad: p.unidad,
+    precio: p.precio, esExtra: p.esExtra, cantidad: 0, manual: false
   }));
+}
+function ensureItemIds(proyecto){
+  proyecto.items.forEach(it => {
+    if(!it.id) it.id = uid();
+    if(it.manual === undefined) it.manual = false;
+  });
+  return proyecto;
 }
 function defaultCircuitos(){
   return {
@@ -1345,12 +1438,14 @@ function defaultCircuitos(){
     tomasGenerales: { cantidad: 0, amperaje: '20A' },
     tomasEspeciales: [],
     diferenciales: [],
+    materialesExtra: [],
   };
 }
 function ensureCircuitos(proyecto){
   if(!proyecto.circuitos) proyecto.circuitos = defaultCircuitos();
   if(!Array.isArray(proyecto.circuitos.tomasEspeciales)) proyecto.circuitos.tomasEspeciales = [];
   if(!Array.isArray(proyecto.circuitos.diferenciales)) proyecto.circuitos.diferenciales = [];
+  if(!Array.isArray(proyecto.circuitos.materialesExtra)) proyecto.circuitos.materialesExtra = [];
   return proyecto.circuitos;
 }
 
@@ -1366,7 +1461,7 @@ const ESTADOS_PAGO = {
   pagado: 'Pagado',
 };
 function defaultPago(){ return { estado: 'pendiente', porcentaje: 0 }; }
-function defaultAjusteFinal(){ return { activo: false, monto: 0, nota: '' }; }
+function defaultAjusteFinal(){ return { activo: false, tipo: 'porcentaje', valor: 0, nota: '' }; }
 function defaultDescuento(){ return { activo: false, tipo: 'porcentaje', valor: 0, motivo: '' }; }
 function ensureEstadoPago(proyecto){
   if(!proyecto.estado || !ESTADOS_PROYECTO[proyecto.estado]) proyecto.estado = 'preliminar';
@@ -1374,6 +1469,12 @@ function ensureEstadoPago(proyecto){
   if(!ESTADOS_PAGO[proyecto.pago.estado]) proyecto.pago.estado = 'pendiente';
   if(typeof proyecto.pago.porcentaje !== 'number') proyecto.pago.porcentaje = proyecto.pago.estado === 'pagado' ? 100 : 0;
   if(!proyecto.ajusteFinal) proyecto.ajusteFinal = defaultAjusteFinal();
+  // Migración: versiones viejas solo tenían { activo, monto, nota } (siempre monto final absoluto)
+  if(proyecto.ajusteFinal.tipo === undefined){
+    proyecto.ajusteFinal.tipo = 'monto';
+    proyecto.ajusteFinal.valor = proyecto.ajusteFinal.monto || 0;
+  }
+  if(proyecto.ajusteFinal.tipo !== 'porcentaje' && proyecto.ajusteFinal.tipo !== 'monto') proyecto.ajusteFinal.tipo = 'porcentaje';
   if(!proyecto.descuento) proyecto.descuento = defaultDescuento();
   if(proyecto.descuento.tipo !== 'porcentaje' && proyecto.descuento.tipo !== 'monto') proyecto.descuento.tipo = 'porcentaje';
   return proyecto;
@@ -1384,15 +1485,19 @@ function calcularDescuento(proyecto, totalPresupuestado){
   let monto = proyecto.descuento.tipo === 'monto' ? valor : totalPresupuestado * valor / 100;
   return Math.max(0, Math.min(monto, totalPresupuestado));
 }
+function calcularAjusteFinal(proyecto, totalConDescuento){
+  if(!proyecto.ajusteFinal || !proyecto.ajusteFinal.activo) return totalConDescuento;
+  const valor = proyecto.ajusteFinal.valor || 0;
+  if(proyecto.ajusteFinal.tipo === 'porcentaje') return Math.max(0, totalConDescuento * (1 + valor / 100));
+  return Math.max(0, valor); // tipo 'monto': total final absoluto
+}
 function totalFinalProyecto(proyecto){
   const {instalacion, extras} = calcularTotales(proyecto);
   const totalPresupuestado = instalacion + extras;
   const descuentoMonto = calcularDescuento(proyecto, totalPresupuestado);
   const totalConDescuento = totalPresupuestado - descuentoMonto;
-  if(proyecto.ajusteFinal && proyecto.ajusteFinal.activo){
-    return { total: proyecto.ajusteFinal.monto || 0, totalPresupuestado, totalConDescuento, descuentoMonto };
-  }
-  return { total: totalConDescuento, totalPresupuestado, totalConDescuento, descuentoMonto };
+  const total = calcularAjusteFinal(proyecto, totalConDescuento);
+  return { total, totalPresupuestado, totalConDescuento, descuentoMonto };
 }
 
 function nuevoProyecto(){
@@ -1410,6 +1515,7 @@ async function abrirProyecto(id){
   proyectoActual = p;
   ensureCircuitos(proyectoActual);
   ensureEstadoPago(proyectoActual);
+  ensureItemIds(proyectoActual);
   if(proyectoActual.planoObra === undefined) proyectoActual.planoObra = null;
   abrirEditor(p.nombre || 'Proyecto');
 }
@@ -1441,8 +1547,10 @@ function abrirEditor(titulo){
   document.getElementById('f-pago-porcentaje').disabled = (proyectoActual.pago.estado !== 'parcial');
   document.getElementById('f-ajuste-activo').checked = !!proyectoActual.ajusteFinal.activo;
   document.getElementById('f-ajuste-campos').style.display = proyectoActual.ajusteFinal.activo ? 'block' : 'none';
-  document.getElementById('f-ajuste-monto').value = proyectoActual.ajusteFinal.monto || 0;
+  document.getElementById('f-ajuste-tipo').value = proyectoActual.ajusteFinal.tipo || 'porcentaje';
+  document.getElementById('f-ajuste-valor').value = proyectoActual.ajusteFinal.valor || 0;
   document.getElementById('f-ajuste-nota').value = proyectoActual.ajusteFinal.nota || '';
+  actualizarLabelAjuste();
   document.getElementById('f-descuento-activo').checked = !!proyectoActual.descuento.activo;
   document.getElementById('f-descuento-campos').style.display = proyectoActual.descuento.activo ? 'block' : 'none';
   document.getElementById('f-descuento-tipo').value = proyectoActual.descuento.tipo || 'porcentaje';
@@ -1493,22 +1601,27 @@ document.getElementById('f-ajuste-activo').addEventListener('change', () => {
   const activo = document.getElementById('f-ajuste-activo').checked;
   proyectoActual.ajusteFinal.activo = activo;
   document.getElementById('f-ajuste-campos').style.display = activo ? 'block' : 'none';
-  if(activo && !proyectoActual.ajusteFinal.monto){
-    const {instalacion, extras} = calcularTotales(proyectoActual);
-    proyectoActual.ajusteFinal.monto = instalacion + extras;
-    document.getElementById('f-ajuste-monto').value = proyectoActual.ajusteFinal.monto;
-  }
   actualizarPagoYAjuste();
 });
-document.getElementById('f-ajuste-monto').addEventListener('input', () => {
+document.getElementById('f-ajuste-tipo').addEventListener('change', () => {
   if(!proyectoActual) return;
-  proyectoActual.ajusteFinal.monto = parseFloat(document.getElementById('f-ajuste-monto').value) || 0;
+  proyectoActual.ajusteFinal.tipo = document.getElementById('f-ajuste-tipo').value;
+  actualizarLabelAjuste();
+  actualizarPagoYAjuste();
+});
+document.getElementById('f-ajuste-valor').addEventListener('input', () => {
+  if(!proyectoActual) return;
+  proyectoActual.ajusteFinal.valor = Math.max(0, parseFloat(document.getElementById('f-ajuste-valor').value) || 0);
   actualizarPagoYAjuste();
 });
 document.getElementById('f-ajuste-nota').addEventListener('input', () => {
   if(!proyectoActual) return;
   proyectoActual.ajusteFinal.nota = document.getElementById('f-ajuste-nota').value;
 });
+function actualizarLabelAjuste(){
+  const esPorcentaje = document.getElementById('f-ajuste-tipo').value === 'porcentaje';
+  document.getElementById('f-ajuste-valor-label').textContent = esPorcentaje ? 'Porcentaje de actualización (%)' : 'Total final ($)';
+}
 document.getElementById('f-descuento-activo').addEventListener('change', () => {
   if(!proyectoActual) return;
   const activo = document.getElementById('f-descuento-activo').checked;
@@ -1538,28 +1651,50 @@ function actualizarPagoYAjuste(){
   document.getElementById('f-pago-monto').textContent = money(monto);
 }
 
+document.getElementById('btn-mostrar-item-manual').addEventListener('click', () => {
+  const form = document.getElementById('item-manual-form');
+  form.style.display = (form.style.display === 'none') ? 'block' : 'none';
+});
+document.getElementById('btn-agregar-item-manual').addEventListener('click', () => {
+  const nombre = document.getElementById('im-nombre').value.trim();
+  const categoria = document.getElementById('im-categoria').value.trim() || 'Otros';
+  const unidad = document.getElementById('im-unidad').value.trim() || 'u';
+  const precio = parseFloat(document.getElementById('im-precio').value) || 0;
+  const cantidad = parseFloat(document.getElementById('im-cantidad').value) || 0;
+  const esExtra = document.getElementById('im-extra').checked;
+  if(!nombre){ showToast('Ponele un nombre al ítem'); return; }
+
+  proyectoActual.items.push({
+    id: uid(), precioId: null, categoria, item: nombre, unidad, precio, esExtra, cantidad, manual: true,
+  });
+  renderEditorItems();
+  document.getElementById('im-nombre').value = '';
+  document.getElementById('im-precio').value = '0';
+  document.getElementById('im-cantidad').value = '1';
+  document.getElementById('im-extra').checked = false;
+  showToast('Ítem manual agregado al presupuesto');
+});
+
 function renderEditorItems(){
   const cont = document.getElementById('editor-items');
   cont.innerHTML = '';
-  const cats = [];
-  proyectoActual.items.forEach(it => { if(!cats.includes(it.categoria)) cats.push(it.categoria); });
+  const grupos = agruparItemsParaRender(proyectoActual.items, it => it.categoria, it => it.esExtra);
 
-  cats.forEach(categoria => {
-    const items = proyectoActual.items.filter(it => it.categoria === categoria);
-    const esExtra = items.some(it => it.esExtra);
+  grupos.forEach(grupo => {
     const block = document.createElement('div');
-    block.className = 'categoria-block' + (esExtra ? ' extra' : '');
-    block.innerHTML = `<h3>${categoria}${esExtra ? ' <span class="badge-extra">APARTE</span>' : ''}</h3>`;
+    block.className = 'categoria-block' + (grupo.esExtra ? ' extra' : '');
+    block.innerHTML = `<h3>${grupo.categoria}${grupo.esExtra ? ' <span class="badge-extra">APARTE</span>' : ''}</h3>`;
 
-    items.forEach(it => {
+    grupo.items.forEach(it => {
       const row = document.createElement('div');
       row.className = 'item-row';
       row.innerHTML = `
-        <div class="row-name">${it.item}</div>
+        <div class="row-name">${it.item}${it.manual ? ' <span class="badge-manual">MANUAL</span>' : ''}</div>
         <div class="row-unit">${it.unidad}</div>
         <div class="mono">${money(it.precio)}</div>
-        <input class="qty-input" type="number" min="0" step="1" value="${it.cantidad}" data-precio-id="${it.precioId}">
-        <div class="row-subtotal">${money(it.precio * it.cantidad)}</div>`;
+        <input class="qty-input" type="number" min="0" step="1" value="${it.cantidad}" data-item-id="${it.id}">
+        <div class="row-subtotal">${money(it.precio * it.cantidad)}</div>
+        ${it.manual ? `<button class="icon-btn" title="Quitar ítem manual" data-quitar-manual="${it.id}">✕</button>` : '<div></div>'}`;
       block.appendChild(row);
     });
     cont.appendChild(block);
@@ -1567,12 +1702,19 @@ function renderEditorItems(){
 
   cont.querySelectorAll('input.qty-input').forEach(inp => {
     inp.addEventListener('input', (e) => {
-      const item = proyectoActual.items.find(it => it.precioId === e.target.dataset.precioId);
+      const item = proyectoActual.items.find(it => it.id === e.target.dataset.itemId);
       if(item){
         item.cantidad = parseFloat(e.target.value) || 0;
         e.target.closest('.item-row').querySelector('.row-subtotal').textContent = money(item.precio * item.cantidad);
         actualizarTotales();
       }
+    });
+  });
+  cont.querySelectorAll('button[data-quitar-manual]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      if(!(await confirmDialog('¿Quitar este ítem manual del presupuesto?'))) return;
+      proyectoActual.items = proyectoActual.items.filter(it => it.id !== e.target.dataset.quitarManual);
+      renderEditorItems();
     });
   });
   actualizarTotales();
@@ -1604,9 +1746,10 @@ function actualizarTotales(){
 
 document.getElementById('btn-refrescar-precios').addEventListener('click', async () => {
   if(!proyectoActual) return;
-  if(!(await confirmDialog('Esto va a reemplazar los precios unitarios cargados en este proyecto por los precios actuales de la lista. ¿Continuar?'))) return;
+  if(!(await confirmDialog('Esto va a reemplazar los precios unitarios cargados en este proyecto por los precios actuales de la lista (los ítems manuales no se tocan). ¿Continuar?'))) return;
   let actualizados = 0;
-  proyectoActual.items.forEach(it => {
+  const itemsCatalogo = proyectoActual.items.filter(it => !it.manual);
+  itemsCatalogo.forEach(it => {
     // Buscamos primero por id, pero si no aparece (por ejemplo, porque la lista de precios
     // se migró en algún momento y los ids cambiaron) buscamos por nombre + categoría, que
     // es lo que se mantiene estable entre migraciones, y re-vinculamos el id para que quede
@@ -1620,10 +1763,10 @@ document.getElementById('btn-refrescar-precios').addEventListener('click', async
     }
   });
   renderEditorItems();
-  if(actualizados === proyectoActual.items.length){
+  if(actualizados === itemsCatalogo.length){
     showToast('Precios actualizados');
   }else if(actualizados > 0){
-    showToast(`Precios actualizados (${actualizados} de ${proyectoActual.items.length} ítems; el resto ya no existe en la lista)`);
+    showToast(`Precios actualizados (${actualizados} de ${itemsCatalogo.length} ítems del catálogo; el resto ya no existe en la lista)`);
   }else{
     showToast('No se encontró ninguno de estos ítems en la lista de precios actual');
   }
@@ -1646,6 +1789,7 @@ function renderCircuitosPanel(){
   document.getElementById('c-tomas-amp').value = c.tomasGenerales.amperaje;
   renderEspecialesRows();
   renderDiferencialesRows();
+  renderMaterialesExtraRows();
   renderResumenCircuitos();
 }
 
@@ -1738,6 +1882,37 @@ document.getElementById('btn-add-diferencial').addEventListener('click', () => {
   c.diferenciales.push({ id: uid(), nombre: '', tipo: 'Bipolar', amperaje: '25A', cantidad: 1 });
   renderDiferencialesRows();
   renderResumenCircuitos();
+});
+
+function renderMaterialesExtraRows(){
+  const cont = document.getElementById('materiales-extra-rows');
+  cont.innerHTML = '';
+  const c = ensureCircuitos(proyectoActual);
+  c.materialesExtra.forEach(row => {
+    const div = document.createElement('div');
+    div.className = 'dyn-row materiales';
+    div.innerHTML = `
+      <input type="text" placeholder="Ej: Cable 2.5mm² negro" value="${row.nombre || ''}" data-field="nombre">
+      <input type="number" min="0" step="1" value="${row.cantidad || 0}" data-field="cantidad">
+      <input type="text" placeholder="m, u, caja..." value="${row.unidad || 'u'}" data-field="unidad">
+      <button class="icon-btn" title="Eliminar">✕</button>`;
+    const inNombre = div.querySelector('input[data-field="nombre"]');
+    const inCant = div.querySelector('input[data-field="cantidad"]');
+    const inUnidad = div.querySelector('input[data-field="unidad"]');
+    inNombre.addEventListener('input', () => { row.nombre = inNombre.value; });
+    inCant.addEventListener('input', () => { row.cantidad = parseFloat(inCant.value) || 0; });
+    inUnidad.addEventListener('input', () => { row.unidad = inUnidad.value.trim() || 'u'; });
+    div.querySelector('button').addEventListener('click', () => {
+      c.materialesExtra = c.materialesExtra.filter(r => r.id !== row.id);
+      renderMaterialesExtraRows();
+    });
+    cont.appendChild(div);
+  });
+}
+document.getElementById('btn-add-material-extra').addEventListener('click', () => {
+  const c = ensureCircuitos(proyectoActual);
+  c.materialesExtra.push({ id: uid(), nombre: '', cantidad: 1, unidad: 'u' });
+  renderMaterialesExtraRows();
 });
 
 function amperajeOrden(a){
@@ -1900,18 +2075,20 @@ function generarPDFPresupuesto(proyecto){
   const marginX = 40;
   let y = encabezadoPDF(doc, proyecto, 'Presupuesto - Instalación Eléctrica', marginX);
 
-  const cats = [];
-  proyecto.items.forEach(it => { if(it.cantidad > 0 && !cats.includes(it.categoria)) cats.push(it.categoria); });
-  const catsInstalacion = cats.filter(c => !proyecto.items.find(it => it.categoria === c).esExtra);
-  const catsExtras = cats.filter(c => proyecto.items.find(it => it.categoria === c).esExtra);
+  const itemsConCantidad = proyecto.items.filter(it => it.cantidad > 0);
+  const grupos = agruparItemsParaRender(itemsConCantidad, it => it.categoria, it => it.esExtra);
+  const gruposInstalacion = grupos.filter(g => !g.esExtra);
+  const gruposExtra = grupos.filter(g => g.esExtra);
 
-  function tablaCategoria(categoria, colorHeader){
-    const filas = proyecto.items.filter(it => it.categoria === categoria && it.cantidad > 0);
+  function tablaGrupo(grupo, colorHeader, mostrarNombreCategoria){
+    const filas = grupo.items;
     if(filas.length === 0) return;
     if(y > 720){ doc.addPage(); y = 50; }
-    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(22,40,63);
-    doc.text(categoria, marginX, y);
-    y += 6;
+    if(mostrarNombreCategoria){
+      doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(22,40,63);
+      doc.text(grupo.categoria, marginX, y);
+      y += 6;
+    }
 
     const body = filas.map(it => [
       it.item, it.unidad, String(it.cantidad),
@@ -1929,7 +2106,7 @@ function generarPDFPresupuesto(proyecto){
     y = doc.lastAutoTable.finalY + 18;
   }
 
-  catsInstalacion.forEach(c => tablaCategoria(c, [22,40,63]));
+  gruposInstalacion.forEach(g => tablaGrupo(g, [22,40,63], true));
 
   let subtotalInstalacion = 0, subtotalExtras = 0;
   proyecto.items.forEach(it => { if(it.cantidad > 0){
@@ -1942,12 +2119,16 @@ function generarPDFPresupuesto(proyecto){
   doc.text('Subtotal instalación: $ ' + subtotalInstalacion.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}), marginX, y);
   y += 26;
 
-  if(catsExtras.length > 0){
-    doc.setFontSize(11);
+  if(gruposExtra.length > 0){
+    if(y > 720){ doc.addPage(); y = 50; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(181,101,29);
     doc.text('Trabajos adicionales (no incluidos en la instalación)', marginX, y);
-    y += 4;
-    catsExtras.forEach(c => tablaCategoria(c, [181,101,29]));
+    y += 22;
+    // Si hay más de una categoría "aparte" mostramos el nombre de cada una para
+    // distinguirlas; si hay una sola, no lo repetimos porque ya lo dice el título de arriba.
+    gruposExtra.forEach(g => tablaGrupo(g, [181,101,29], gruposExtra.length > 1));
 
+    if(y > 740){ doc.addPage(); y = 50; }
     doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(110,110,110);
     doc.text('Estos trabajos se cotizan aparte de la instalación.', marginX, y);
     y += 20;
@@ -1969,13 +2150,29 @@ function generarPDFPresupuesto(proyecto){
     y += 26;
   }
 
+  const totalConDescuento = totalPresupuestado - descuentoMonto;
   if(y > 740){ doc.addPage(); y = 50; }
   doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(22,40,63);
-  doc.text('TOTAL GENERAL: $ ' + (totalPresupuestado - descuentoMonto).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}), marginX, y);
+  doc.text('TOTAL GENERAL: $ ' + totalConDescuento.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}), marginX, y);
   y += 30;
 
+  const tieneAjuste = proyecto.ajusteFinal && proyecto.ajusteFinal.activo;
+  if(tieneAjuste){
+    const totalActualizado = calcularAjusteFinal(proyecto, totalConDescuento);
+    if(y > 720){ doc.addPage(); y = 50; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(181,101,29);
+    const etiquetaAjuste = proyecto.ajusteFinal.tipo === 'porcentaje'
+      ? `Actualización aplicada: +${proyecto.ajusteFinal.valor || 0}%`
+      : 'Actualización de precio final aplicada';
+    doc.text(etiquetaAjuste + (proyecto.ajusteFinal.nota ? ` — ${proyecto.ajusteFinal.nota}` : ''), marginX, y);
+    y += 22;
+    doc.setFontSize(15);
+    doc.text('TOTAL ACTUALIZADO: $ ' + totalActualizado.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}), marginX, y);
+    y += 30;
+  }
+
   const anchoPagina = doc.internal.pageSize.getWidth();
-  const leyenda = 'Los valores de este presupuesto corresponden al día de su emisión (' +
+  const leyenda = 'Los valores originales de este presupuesto corresponden al día de su emisión (' +
     (fechaLegible(proyecto.fecha) || '-') + ') y podrían sufrir modificaciones por inflación ' +
     'u otras variaciones de costos hasta el momento de confirmar y ejecutar el trabajo.';
   doc.setFont('helvetica','italic'); doc.setFontSize(8.5); doc.setTextColor(110,110,110);
@@ -2001,7 +2198,7 @@ function generarPDFMateriales(proyecto){
   doc.text('Cantidad de tableros: ' + (circuitos.cantidadTableros || 0), marginX, y);
   y += 20;
 
-  if(resumen.termicas.length === 0 && resumen.diferenciales.length === 0){
+  if(resumen.termicas.length === 0 && resumen.diferenciales.length === 0 && circuitos.materialesExtra.length === 0){
     doc.setFont('helvetica','italic'); doc.setFontSize(10); doc.setTextColor(110,110,110);
     doc.text('Todavía no cargaste circuitos en este proyecto.', marginX, y);
   }else{
@@ -2031,6 +2228,21 @@ function generarPDFMateriales(proyecto){
         styles: { fontSize:10, cellPadding:6 },
         headStyles: { fillColor:[22,40,63], textColor:255 },
         columnStyles: { 1:{halign:'center'} },
+      });
+      y = doc.lastAutoTable.finalY + 20;
+    }
+    if(circuitos.materialesExtra.length > 0){
+      if(y > 700){ doc.addPage(); y = 50; }
+      doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(22,40,63);
+      doc.text('Materiales adicionales', marginX, y);
+      y += 6;
+      doc.autoTable({
+        startY: y + 6, margin: { left: marginX, right: marginX },
+        head: [['Material','Unidad','Cantidad']],
+        body: circuitos.materialesExtra.map(m => [m.nombre || '-', m.unidad || 'u', String(m.cantidad || 0)]),
+        styles: { fontSize:10, cellPadding:6 },
+        headStyles: { fillColor:[22,40,63], textColor:255 },
+        columnStyles: { 2:{halign:'center'} },
       });
       y = doc.lastAutoTable.finalY + 20;
     }
@@ -2386,7 +2598,7 @@ async function sincronizarConGitHub({ push = false, silencioso = false } = {}){
       renderProyectosGrid();
       if(proyectoActual && document.getElementById('view-editor').classList.contains('active')){
         const actualizado = await loadProyecto(proyectoActual.id);
-        if(actualizado){ proyectoActual = actualizado; ensureCircuitos(proyectoActual); renderEditorItems(); renderCircuitosPanel(); renderPlanoObra(); actualizarAutoriaEnEditor(); }
+        if(actualizado){ proyectoActual = actualizado; ensureCircuitos(proyectoActual); ensureItemIds(proyectoActual); renderEditorItems(); renderCircuitosPanel(); renderPlanoObra(); actualizarAutoriaEnEditor(); }
       }
     }
 
