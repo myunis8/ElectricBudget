@@ -177,7 +177,7 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
 .circuitos-simple-row .field label, .circuitos-tablero-count label{ font-size:0.7rem; text-transform:uppercase; letter-spacing:0.04em; color:var(--muted); display:block; margin-bottom:4px; }
 .circuitos-tablero-count{ max-width:220px; margin-bottom:18px; }
 .dyn-row{ display:grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap:8px; align-items:center; margin-bottom:8px; }
-.dyn-row.materiales{ grid-template-columns: 2fr 1fr 1fr auto; }
+.dyn-row.materiales{ grid-template-columns: 1.6fr 0.7fr 0.7fr 1.4fr 44px 24px; }
 .dyn-row input, .dyn-row select{ padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:0.82rem; }
 .dyn-row-header{ display:grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap:8px; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.04em; color:var(--muted); margin-bottom:4px; }
 .resumen-circuitos{ display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:10px; }
@@ -433,7 +433,7 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
       </div>
       <table class="price-table" id="price-table">
         <thead>
-          <tr><th style="width:38%">Ítem</th><th style="width:12%">Unidad</th><th style="width:18%">Precio unitario</th><th style="width:14%"></th></tr>
+          <tr><th style="width:36%">Ítem</th><th style="width:12%">Unidad</th><th style="width:16%">Precio unitario</th><th style="width:14%">Orden</th><th style="width:10%"></th></tr>
         </thead>
         <tbody id="price-table-body"></tbody>
       </table>
@@ -462,7 +462,14 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
         <div class="field"><label>Nombre del proyecto</label><input class="text-input" id="f-nombre" placeholder="Ej: Casa Rodríguez"></div>
         <div class="field"><label>Cliente</label><input class="text-input" id="f-cliente"></div>
         <div class="field"><label>Obra / dirección</label><input class="text-input" id="f-obra"></div>
-        <div class="field"><label>Fecha</label><input class="text-input" id="f-fecha" type="date"></div>
+        <div class="field"><label>Creado el</label><input class="text-input" id="f-fecha" type="date" disabled style="opacity:0.7; cursor:not-allowed;"></div>
+        <div class="field">
+          <label>Fecha de emisión (para el PDF)</label>
+          <div style="display:flex; gap:6px;">
+            <input class="text-input" id="f-fecha-emision" type="date" style="flex:1;">
+            <button class="btn btn-ghost btn-sm" id="btn-fecha-emision-hoy" type="button" title="Poner la fecha de hoy">Hoy</button>
+          </div>
+        </div>
         <div class="field"><label>Tipo de instalación</label>
           <select class="text-input" id="f-tipo"><option>Monofásica</option><option>Trifásica</option></select>
         </div>
@@ -634,6 +641,15 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
       </div>
 
       <div class="circuitos-sub">
+        <label class="chk" style="font-weight:600;"><input type="checkbox" id="c-termica-general-activa"> Térmica general por cada tablero</label>
+        <div class="circuitos-simple-row" id="c-termica-general-campos" style="display:none; margin-top:8px;">
+          <div class="field"><label>Amperaje</label><input class="text-input" id="c-termica-general-amp" list="amperajes-list" value="40A"></div>
+        </div>
+        <div class="hint" style="margin-top:6px;">Si está tildado, se suma 1 térmica de este amperaje por cada tablero cargado
+          arriba al resumen de térmicas necesarias.</div>
+      </div>
+
+      <div class="circuitos-sub">
         <h3>Iluminación</h3>
         <div class="circuitos-simple-row">
           <div class="field"><label>Cantidad de circuitos</label><input class="text-input mono" id="c-ilum-cant" type="number" min="0" step="1" value="0"></div>
@@ -667,7 +683,7 @@ input.text-input, select.text-input{ padding:8px 10px; border:1px solid var(--li
         <h3>Materiales adicionales</h3>
         <div class="hint" style="margin-bottom:8px;">Para cables de distintos espesores/colores, accesorios de colocación
           del tablero, y cualquier otro material que quieras que aparezca en el PDF de materiales.</div>
-        <div class="dyn-row-header" style="grid-template-columns: 2fr 1fr 1fr 24px;"><div>Material</div><div>Cantidad</div><div>Unidad</div><div></div></div>
+        <div class="dyn-row-header" style="grid-template-columns: 1.6fr 0.7fr 0.7fr 1.4fr 44px 24px;"><div>Material</div><div>Cantidad</div><div>Unidad</div><div>Link de ejemplo (opcional)</div><div>Orden</div><div></div></div>
         <div id="materiales-extra-rows"></div>
         <button class="btn btn-ghost btn-sm" id="btn-add-material-extra">+ Agregar material</button>
       </div>
@@ -718,7 +734,7 @@ const SEED_PRECIOS = [
   ["Trabajos adicionales","Conexión al medidor (trabajo en tensión)","u",true],
 ];
 
-const APP_VERSION = '1.6';
+const APP_VERSION = '1.7';
 
 let precios = [];              // [{id, categoria, item, unidad, precio, esExtra}]
 let proyectosIndex = [];       // [{id, nombre, cliente, fecha, total}]
@@ -1213,18 +1229,34 @@ function renderPreciosTable(){
   const body = document.getElementById('price-table-body');
   body.innerHTML = '';
   const grupos = agruparItemsParaRender(precios, p => p.categoria, p => p.esExtra);
+  const gruposNormales = grupos.filter(g => !g.esExtra);
+  const gruposExtra = grupos.filter(g => g.esExtra);
+
   grupos.forEach(grupo => {
+    const listaHermanos = grupo.esExtra ? gruposExtra : gruposNormales;
+    const posEnHermanos = listaHermanos.findIndex(g => g.categoria === grupo.categoria);
+
     const trCat = document.createElement('tr');
     trCat.className = 'cat-row' + (grupo.esExtra ? ' extra' : '');
-    trCat.innerHTML = `<td colspan="4">${grupo.categoria}${grupo.esExtra ? ' <span class="badge-extra">APARTE</span>' : ''}</td>`;
+    trCat.innerHTML = `
+      <td colspan="3">${grupo.categoria}${grupo.esExtra ? ' <span class="badge-extra">APARTE</span>' : ''}</td>
+      <td>
+        <button class="icon-btn" title="Subir categoría" data-mover-categoria="${grupo.categoria}" data-extra="${grupo.esExtra}" data-dir="-1" ${posEnHermanos === 0 ? 'disabled' : ''}>▲</button>
+        <button class="icon-btn" title="Bajar categoría" data-mover-categoria="${grupo.categoria}" data-extra="${grupo.esExtra}" data-dir="1" ${posEnHermanos === listaHermanos.length - 1 ? 'disabled' : ''}>▼</button>
+      </td>
+      <td></td>`;
     body.appendChild(trCat);
 
-    grupo.items.forEach(p => {
+    grupo.items.forEach((p, i) => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${p.item}</td>
         <td>${p.unidad}</td>
         <td><input class="price-input mono" type="number" min="0" step="0.01" value="${p.precio}" data-id="${p.id}"></td>
+        <td>
+          <button class="icon-btn" title="Subir ítem" data-mover-item="${p.id}" data-dir="-1" ${i === 0 ? 'disabled' : ''}>▲</button>
+          <button class="icon-btn" title="Bajar ítem" data-mover-item="${p.id}" data-dir="1" ${i === grupo.items.length - 1 ? 'disabled' : ''}>▼</button>
+        </td>
         <td><button class="icon-btn" title="Eliminar ítem" data-del="${p.id}">✕</button></td>`;
       body.appendChild(tr);
     });
@@ -1250,8 +1282,55 @@ function renderPreciosTable(){
       await savePrecios(precios);
       renderPreciosTable();
       renderCategoriasDatalist();
+      if(item){
+        const afectados = await propagarEliminacionItemAProyectos(item);
+        if(document.getElementById('view-editor').classList.contains('active') && proyectoActual) renderEditorItems();
+        if(afectados > 0) showToast(`Ítem eliminado (también de ${afectados} proyecto${afectados === 1 ? '' : 's'} donde no se había usado)`);
+      }
     });
   });
+  body.querySelectorAll('button[data-mover-categoria]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      moverCategoriaPrecio(btn.dataset.moverCategoria, btn.dataset.extra === 'true', parseInt(btn.dataset.dir));
+      await savePrecios(precios);
+      renderPreciosTable();
+    });
+  });
+  body.querySelectorAll('button[data-mover-item]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      moverItemPrecio(btn.dataset.moverItem, parseInt(btn.dataset.dir));
+      await savePrecios(precios);
+      renderPreciosTable();
+    });
+  });
+}
+
+// Mueve una categoría entera un lugar hacia arriba/abajo, sin cruzar la frontera
+// entre categorías normales y "aparte" (eso se controla con el tilde de cada ítem).
+function moverCategoriaPrecio(categoria, esExtra, direccion){
+  const grupos = agruparItemsParaRender(precios, p => p.categoria, p => p.esExtra);
+  const normales = grupos.filter(g => !g.esExtra);
+  const extras = grupos.filter(g => g.esExtra);
+  const lista = esExtra ? extras : normales;
+  const idx = lista.findIndex(g => g.categoria === categoria);
+  const nuevoIdx = idx + direccion;
+  if(idx === -1 || nuevoIdx < 0 || nuevoIdx >= lista.length) return;
+  [lista[idx], lista[nuevoIdx]] = [lista[nuevoIdx], lista[idx]];
+  precios = normales.flatMap(g => g.items).concat(extras.flatMap(g => g.items));
+}
+// Mueve un ítem un lugar hacia arriba/abajo, sin salirse de su propia categoría
+// (y de si es normal o aparte).
+function moverItemPrecio(itemId, direccion){
+  const idxActual = precios.findIndex(p => p.id === itemId);
+  if(idxActual === -1) return;
+  const item = precios[idxActual];
+  let idxObjetivo = -1;
+  const paso = direccion < 0 ? -1 : 1;
+  for(let i = idxActual + paso; i >= 0 && i < precios.length; i += paso){
+    if(precios[i].categoria === item.categoria && precios[i].esExtra === item.esExtra){ idxObjetivo = i; break; }
+  }
+  if(idxObjetivo === -1) return;
+  [precios[idxActual], precios[idxObjetivo]] = [precios[idxObjetivo], precios[idxActual]];
 }
 
 function renderCategoriasDatalist(){
@@ -1281,6 +1360,27 @@ async function propagarNuevoItemAProyectos(nuevoItem){
     await storageSet('proyecto:' + proyecto.id, JSON.stringify(proyecto), false);
     afectados++;
     if(proyectoActual && proyectoActual.id === proyecto.id) proyectoActual = proyecto;
+  }
+  return afectados;
+}
+// Cuando se elimina un ítem de la lista de precios, lo sacamos también de los
+// proyectos existentes, pero SOLO si ahí todavía tiene cantidad 0 (no se tocó) --
+// si ya se usó en un presupuesto (cantidad > 0) lo dejamos como está, para no
+// borrar de golpe un ítem que ya forma parte de un presupuesto real.
+async function propagarEliminacionItemAProyectos(itemEliminado){
+  let afectados = 0;
+  for(const entry of proyectosIndex){
+    const proyecto = await loadProyecto(entry.id);
+    if(!proyecto) continue;
+    const antes = proyecto.items.length;
+    proyecto.items = proyecto.items.filter(it =>
+      !(it.categoria === itemEliminado.categoria && it.item === itemEliminado.item && it.cantidad === 0 && !it.manual)
+    );
+    if(proyecto.items.length !== antes){
+      await storageSet('proyecto:' + proyecto.id, JSON.stringify(proyecto), false);
+      afectados++;
+      if(proyectoActual && proyectoActual.id === proyecto.id) proyectoActual = proyecto;
+    }
   }
   return afectados;
 }
@@ -1434,6 +1534,7 @@ function ensureItemIds(proyecto){
 function defaultCircuitos(){
   return {
     cantidadTableros: 0,
+    termicaGeneralPorTablero: { activa: false, amperaje: '40A' },
     iluminacion: { cantidad: 0, amperaje: '10A' },
     tomasGenerales: { cantidad: 0, amperaje: '20A' },
     tomasEspeciales: [],
@@ -1443,6 +1544,7 @@ function defaultCircuitos(){
 }
 function ensureCircuitos(proyecto){
   if(!proyecto.circuitos) proyecto.circuitos = defaultCircuitos();
+  if(!proyecto.circuitos.termicaGeneralPorTablero) proyecto.circuitos.termicaGeneralPorTablero = { activa: false, amperaje: '40A' };
   if(!Array.isArray(proyecto.circuitos.tomasEspeciales)) proyecto.circuitos.tomasEspeciales = [];
   if(!Array.isArray(proyecto.circuitos.diferenciales)) proyecto.circuitos.diferenciales = [];
   if(!Array.isArray(proyecto.circuitos.materialesExtra)) proyecto.circuitos.materialesExtra = [];
@@ -1477,6 +1579,7 @@ function ensureEstadoPago(proyecto){
   if(proyecto.ajusteFinal.tipo !== 'porcentaje' && proyecto.ajusteFinal.tipo !== 'monto') proyecto.ajusteFinal.tipo = 'porcentaje';
   if(!proyecto.descuento) proyecto.descuento = defaultDescuento();
   if(proyecto.descuento.tipo !== 'porcentaje' && proyecto.descuento.tipo !== 'monto') proyecto.descuento.tipo = 'porcentaje';
+  if(!proyecto.fechaEmision) proyecto.fechaEmision = proyecto.fecha || todayISO();
   return proyecto;
 }
 function calcularDescuento(proyecto, totalPresupuestado){
@@ -1502,7 +1605,7 @@ function totalFinalProyecto(proyecto){
 
 function nuevoProyecto(){
   proyectoActual = {
-    id: uid(), nombre: '', cliente: '', obra: '', fecha: todayISO(), tipoInstalacion: 'Monofásica',
+    id: uid(), nombre: '', cliente: '', obra: '', fecha: todayISO(), fechaEmision: todayISO(), tipoInstalacion: 'Monofásica',
     items: itemsIniciales(), circuitos: defaultCircuitos(), planoObra: null, createdAt: Date.now(),
     estado: 'preliminar', pago: defaultPago(), ajusteFinal: defaultAjusteFinal(), descuento: defaultDescuento(),
     creadoPor: usuarioActual || 'Sin identificar', actualizadoPor: '', actualizadoEl: 0,
@@ -1539,7 +1642,8 @@ function abrirEditor(titulo){
   document.getElementById('f-nombre').value = proyectoActual.nombre || '';
   document.getElementById('f-cliente').value = proyectoActual.cliente || '';
   document.getElementById('f-obra').value = proyectoActual.obra || '';
-  document.getElementById('f-fecha').value = proyectoActual.fecha || todayISO();
+  document.getElementById('f-fecha').value = proyectoActual.createdAt ? new Date(proyectoActual.createdAt).toISOString().slice(0,10) : (proyectoActual.fecha || todayISO());
+  document.getElementById('f-fecha-emision').value = proyectoActual.fechaEmision || todayISO();
   document.getElementById('f-tipo').value = proyectoActual.tipoInstalacion || 'Monofásica';
   document.getElementById('f-estado').value = proyectoActual.estado || 'preliminar';
   document.getElementById('f-pago-estado').value = proyectoActual.pago.estado;
@@ -1564,16 +1668,24 @@ function abrirEditor(titulo){
   showView('editor');
 }
 
-['f-nombre','f-cliente','f-obra','f-fecha','f-tipo','f-estado'].forEach(id => {
+['f-nombre','f-cliente','f-obra','f-tipo','f-estado'].forEach(id => {
   document.getElementById(id).addEventListener('input', () => {
     if(!proyectoActual) return;
     proyectoActual.nombre = document.getElementById('f-nombre').value;
     proyectoActual.cliente = document.getElementById('f-cliente').value;
     proyectoActual.obra = document.getElementById('f-obra').value;
-    proyectoActual.fecha = document.getElementById('f-fecha').value;
     proyectoActual.tipoInstalacion = document.getElementById('f-tipo').value;
     proyectoActual.estado = document.getElementById('f-estado').value;
   });
+});
+document.getElementById('f-fecha-emision').addEventListener('input', (e) => {
+  if(!proyectoActual) return;
+  proyectoActual.fechaEmision = e.target.value || todayISO();
+});
+document.getElementById('btn-fecha-emision-hoy').addEventListener('click', () => {
+  if(!proyectoActual) return;
+  proyectoActual.fechaEmision = todayISO();
+  document.getElementById('f-fecha-emision').value = proyectoActual.fechaEmision;
 });
 
 document.getElementById('f-pago-estado').addEventListener('change', () => {
@@ -1783,6 +1895,9 @@ document.getElementById('btn-guardar').addEventListener('click', async () => {
 function renderCircuitosPanel(){
   const c = ensureCircuitos(proyectoActual);
   document.getElementById('c-tableros').value = c.cantidadTableros;
+  document.getElementById('c-termica-general-activa').checked = !!c.termicaGeneralPorTablero.activa;
+  document.getElementById('c-termica-general-campos').style.display = c.termicaGeneralPorTablero.activa ? 'block' : 'none';
+  document.getElementById('c-termica-general-amp').value = c.termicaGeneralPorTablero.amperaje || '40A';
   document.getElementById('c-ilum-cant').value = c.iluminacion.cantidad;
   document.getElementById('c-ilum-amp').value = c.iluminacion.amperaje;
   document.getElementById('c-tomas-cant').value = c.tomasGenerales.cantidad;
@@ -1795,6 +1910,16 @@ function renderCircuitosPanel(){
 
 document.getElementById('c-tableros').addEventListener('input', (e) => {
   ensureCircuitos(proyectoActual).cantidadTableros = parseInt(e.target.value) || 0;
+  renderResumenCircuitos();
+});
+document.getElementById('c-termica-general-activa').addEventListener('change', (e) => {
+  ensureCircuitos(proyectoActual).termicaGeneralPorTablero.activa = e.target.checked;
+  document.getElementById('c-termica-general-campos').style.display = e.target.checked ? 'block' : 'none';
+  renderResumenCircuitos();
+});
+document.getElementById('c-termica-general-amp').addEventListener('input', (e) => {
+  ensureCircuitos(proyectoActual).termicaGeneralPorTablero.amperaje = e.target.value.trim() || '40A';
+  renderResumenCircuitos();
 });
 document.getElementById('c-ilum-cant').addEventListener('input', (e) => {
   ensureCircuitos(proyectoActual).iluminacion.cantidad = parseInt(e.target.value) || 0;
@@ -1888,21 +2013,38 @@ function renderMaterialesExtraRows(){
   const cont = document.getElementById('materiales-extra-rows');
   cont.innerHTML = '';
   const c = ensureCircuitos(proyectoActual);
-  c.materialesExtra.forEach(row => {
+  c.materialesExtra.forEach((row, i) => {
     const div = document.createElement('div');
     div.className = 'dyn-row materiales';
     div.innerHTML = `
       <input type="text" placeholder="Ej: Cable 2.5mm² negro" value="${row.nombre || ''}" data-field="nombre">
       <input type="number" min="0" step="1" value="${row.cantidad || 0}" data-field="cantidad">
       <input type="text" placeholder="m, u, caja..." value="${row.unidad || 'u'}" data-field="unidad">
+      <input type="url" placeholder="https://..." value="${row.link || ''}" data-field="link">
+      <div>
+        <button class="icon-btn" title="Subir" data-dir="-1" ${i === 0 ? 'disabled' : ''}>▲</button>
+        <button class="icon-btn" title="Bajar" data-dir="1" ${i === c.materialesExtra.length - 1 ? 'disabled' : ''}>▼</button>
+      </div>
       <button class="icon-btn" title="Eliminar">✕</button>`;
     const inNombre = div.querySelector('input[data-field="nombre"]');
     const inCant = div.querySelector('input[data-field="cantidad"]');
     const inUnidad = div.querySelector('input[data-field="unidad"]');
+    const inLink = div.querySelector('input[data-field="link"]');
     inNombre.addEventListener('input', () => { row.nombre = inNombre.value; });
     inCant.addEventListener('input', () => { row.cantidad = parseFloat(inCant.value) || 0; });
     inUnidad.addEventListener('input', () => { row.unidad = inUnidad.value.trim() || 'u'; });
-    div.querySelector('button').addEventListener('click', () => {
+    inLink.addEventListener('input', () => { row.link = inLink.value.trim(); });
+    div.querySelectorAll('button[data-dir]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const dir = parseInt(btn.dataset.dir);
+        const idxActual = c.materialesExtra.findIndex(r => r.id === row.id);
+        const idxObjetivo = idxActual + dir;
+        if(idxObjetivo < 0 || idxObjetivo >= c.materialesExtra.length) return;
+        [c.materialesExtra[idxActual], c.materialesExtra[idxObjetivo]] = [c.materialesExtra[idxObjetivo], c.materialesExtra[idxActual]];
+        renderMaterialesExtraRows();
+      });
+    });
+    div.querySelector('button:not([data-dir])').addEventListener('click', () => {
       c.materialesExtra = c.materialesExtra.filter(r => r.id !== row.id);
       renderMaterialesExtraRows();
     });
@@ -1911,7 +2053,7 @@ function renderMaterialesExtraRows(){
 }
 document.getElementById('btn-add-material-extra').addEventListener('click', () => {
   const c = ensureCircuitos(proyectoActual);
-  c.materialesExtra.push({ id: uid(), nombre: '', cantidad: 1, unidad: 'u' });
+  c.materialesExtra.push({ id: uid(), nombre: '', cantidad: 1, unidad: 'u', link: '' });
   renderMaterialesExtraRows();
 });
 
@@ -1930,6 +2072,9 @@ function calcularResumenCircuitos(c){
   sumarTermica(c.iluminacion.amperaje, c.iluminacion.cantidad);
   sumarTermica(c.tomasGenerales.amperaje, c.tomasGenerales.cantidad);
   c.tomasEspeciales.forEach(row => sumarTermica(row.amperaje, row.cantidad));
+  if(c.termicaGeneralPorTablero && c.termicaGeneralPorTablero.activa){
+    sumarTermica(c.termicaGeneralPorTablero.amperaje, c.cantidadTableros || 0);
+  }
 
   const termicas = Object.keys(termicasMapa)
     .map(amperaje => ({ amperaje, cantidad: termicasMapa[amperaje] }))
@@ -2022,7 +2167,7 @@ function encabezadoPDF(doc, proyecto, titulo, marginX){
   [
     ['Cliente:', proyecto.cliente || '-'],
     ['Obra / dirección:', proyecto.obra || '-'],
-    ['Fecha:', fechaLegible(proyecto.fecha) || '-'],
+    ['Fecha:', fechaLegible(proyecto.fechaEmision || proyecto.fecha) || '-'],
     ['Tipo de instalación:', proyecto.tipoInstalacion || '-'],
   ].forEach(([label, val]) => {
     doc.setFont('helvetica','bold'); doc.text(label, marginX, y);
@@ -2173,7 +2318,7 @@ function generarPDFPresupuesto(proyecto){
 
   const anchoPagina = doc.internal.pageSize.getWidth();
   const leyenda = 'Los valores originales de este presupuesto corresponden al día de su emisión (' +
-    (fechaLegible(proyecto.fecha) || '-') + ') y podrían sufrir modificaciones por inflación ' +
+    (fechaLegible(proyecto.fechaEmision || proyecto.fecha) || '-') + ') y podrían sufrir modificaciones por inflación ' +
     'u otras variaciones de costos hasta el momento de confirmar y ejecutar el trabajo.';
   doc.setFont('helvetica','italic'); doc.setFontSize(8.5); doc.setTextColor(110,110,110);
   const lineas = doc.splitTextToSize(leyenda, anchoPagina - marginX * 2);
@@ -2238,11 +2383,20 @@ function generarPDFMateriales(proyecto){
       y += 6;
       doc.autoTable({
         startY: y + 6, margin: { left: marginX, right: marginX },
-        head: [['Material','Unidad','Cantidad']],
-        body: circuitos.materialesExtra.map(m => [m.nombre || '-', m.unidad || 'u', String(m.cantidad || 0)]),
+        head: [['Material','Unidad','Cantidad','Referencia']],
+        body: circuitos.materialesExtra.map(m => [m.nombre || '-', m.unidad || 'u', String(m.cantidad || 0), m.link ? 'Ver ejemplo ↗' : '']),
         styles: { fontSize:10, cellPadding:6 },
         headStyles: { fillColor:[22,40,63], textColor:255 },
-        columnStyles: { 2:{halign:'center'} },
+        columnStyles: { 2:{halign:'center'}, 3:{textColor:[43,108,163]} },
+        didDrawCell: (data) => {
+          // Columna 3 = "Referencia": si esa fila tiene link, lo hacemos clickeable sobre toda la celda
+          if(data.section === 'body' && data.column.index === 3){
+            const material = circuitos.materialesExtra[data.row.index];
+            if(material && material.link){
+              doc.link(data.cell.x, data.cell.y, data.cell.width, data.cell.height, { url: material.link });
+            }
+          }
+        },
       });
       y = doc.lastAutoTable.finalY + 20;
     }
@@ -2396,7 +2550,7 @@ function construirEntryIndice(proyecto){
     nombre: proyecto.nombre || '(sin nombre)',
     cliente: proyecto.cliente || '',
     obra: proyecto.obra || '',
-    fecha: proyecto.fecha || '',
+    fecha: proyecto.fechaEmision || proyecto.fecha || '',
     creadoEl: proyecto.createdAt || Date.now(),
     total: instalacion + extras,
     estado: proyecto.estado,
@@ -2598,7 +2752,15 @@ async function sincronizarConGitHub({ push = false, silencioso = false } = {}){
       renderProyectosGrid();
       if(proyectoActual && document.getElementById('view-editor').classList.contains('active')){
         const actualizado = await loadProyecto(proyectoActual.id);
-        if(actualizado){ proyectoActual = actualizado; ensureCircuitos(proyectoActual); ensureItemIds(proyectoActual); renderEditorItems(); renderCircuitosPanel(); renderPlanoObra(); actualizarAutoriaEnEditor(); }
+        if(actualizado){
+          proyectoActual = actualizado;
+          ensureCircuitos(proyectoActual);
+          ensureItemIds(proyectoActual);
+          ensureEstadoPago(proyectoActual);
+          document.getElementById('f-fecha').value = proyectoActual.createdAt ? new Date(proyectoActual.createdAt).toISOString().slice(0,10) : todayISO();
+          document.getElementById('f-fecha-emision').value = proyectoActual.fechaEmision || todayISO();
+          renderEditorItems(); renderCircuitosPanel(); renderPlanoObra(); actualizarAutoriaEnEditor();
+        }
       }
     }
 
